@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Cinema {
+  id      String @id @default(cuid())
+  name    String
+  address String
+
+  rooms Room[]
+}
+
+model Room {
+  id        String @id @default(cuid())
+  name      String
+  type      String
+
+  cinemaId  String
+  cinema    Cinema @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id])
+
+  sensors Sensor[]
+}
+
+model Profile {
+  id              String @id @default(cuid())
+  name            String
+  description     String?
+
+  temperatureMin  Float
+  temperatureMax  Float
+
+  humidityMin     Float
+  humidityMax     Float
+
+  rooms Room[]
+}
+
+model Sensor {
+  id          String        @id @default(cuid())
+  devEui      String        @unique
+  name        String?
+
+  temperature Float?
+  humidity    Float?
+  battery     Int?
+  lastSeen    DateTime?
+
+  roomId      String?
+  room        Room? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  measurements Measurement[]
+  alerts       Alert[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Measurement {
+  id        String   @id @default(cuid())
+
+  sensorId  String
+  sensor    Sensor   @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+
+  timestamp DateTime
+
+  temperature Float?
+  humidity    Float?
+  battery     Float?
+
+
+  createdAt DateTime @default(now())
+
+  @@index([sensorId, timestamp])
+}
+
+enum AlertType {
+  temperature_high
+  temperature_low
+  humidity_high
+  humidity_low
+}
+
+model Alert {
+  id          String    @id @default(cuid())
+  sensorId    String
+  sensor      Sensor    @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+
+  type        AlertType
+
+  temperature Float
+  humidity    Float
+
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+  active      Boolean   @default(true)
+}
