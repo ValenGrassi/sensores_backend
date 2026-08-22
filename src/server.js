@@ -295,6 +295,7 @@ app.get(
   async (req, res) => {
     try {
       const devEui = req.params.devEui.toLowerCase();
+      const { preset = "24h" } = req.query;
 
       const sensor = await prisma.sensor.findUnique({
         where: {
@@ -308,18 +309,58 @@ app.get(
         });
       }
 
-      const measurements =
-        await prisma.measurement.findMany({
-          where: {
-            sensorId: sensor.id,
-          },
+      const now = new Date();
 
-          orderBy: {
-            timestamp: "asc",
-          },
-        });
+      let from = null;
+
+      switch (preset) {
+        case "24h":
+          from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+
+        case "7d":
+          from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+
+        case "30d":
+          from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+
+        case "3m":
+          from = new Date(now.getTime() - 91 * 24 * 60 * 60 * 1000);
+          break;
+
+        case "6m":
+          from = new Date(now.getTime() - 182 * 24 * 60 * 60 * 1000);
+          break;
+
+        case "all":
+          from = null;
+          break;
+
+        default:
+          from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      }
+
+      const measurements = await prisma.measurement.findMany({
+        where: {
+          sensorId: sensor.id,
+
+          ...(from && {
+            timestamp: {
+              gte: from,
+              lte: now,
+            },
+          }),
+        },
+
+        orderBy: {
+          timestamp: "asc",
+        },
+      });
 
       res.json(measurements);
+
     } catch (error) {
       console.error("ERROR:", error);
 
