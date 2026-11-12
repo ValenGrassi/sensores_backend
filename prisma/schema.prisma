@@ -95,10 +95,27 @@ model Alert {
 
   type        AlertType
 
-  temperature Float
-  humidity    Float
+  // Lecturas del sensor en el momento en que se abrió la alerta.
+  // null = el sensor no informó ese valor (antes se guardaba 0).
+  temperature Float?
+  humidity    Float?
 
   createdAt   DateTime  @default(now())
   resolvedAt  DateTime?
   active      Boolean   @default(true)
+}
+
+// Clientes externos autorizados a escribir (API keys).
+// La clave nunca se guarda: solo su hash SHA-256.
+// Se administran con: npm run clients -- <create|list|revoke>
+model ApiClient {
+  id          String    @id @default(cuid())
+  name        String
+  keyHash     String    @unique
+  keyPrefix   String
+  permissions String[]
+
+  createdAt   DateTime  @default(now())
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
 }

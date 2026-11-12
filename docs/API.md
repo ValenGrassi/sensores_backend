@@ -1,0 +1,420 @@
+# Referencia de la API
+
+Rutas en [`src/routes/`](../src/routes/), armadas en [`src/app.js`](../src/app.js).
+
+## Índice
+
+- [Convenciones generales](#convenciones-generales)
+- [Autenticación y permisos](#autenticación-y-permisos)
+- [Errores](#errores)
+- [Resumen de endpoints](#resumen-de-endpoints)
+- [Objetos de respuesta](#objetos-de-respuesta)
+- Endpoints
+  - Sistema: [`GET /api/health`](#get-apihealth) · [`GET /api/me`](#get-apime)
+  - Indicadores: [`GET /api/stats`](#get-apistats) · [`GET /api/dashboard`](#get-apidashboard)
+  - Cines: [`GET /api/cinemas`](#get-apicinemas) · [`GET /api/cinemas/:id`](#get-apicinemasid)
+  - Salas: [`GET /api/rooms`](#get-apirooms)
+  - Sensores: [`GET /api/sensors`](#get-apisensors) · [`GET /api/sensors/:devEui`](#get-apisensorsdeveui) · [`GET /api/sensors/:devEui/measurements`](#get-apisensorsdeveuimeasurements) · [`PATCH /api/sensors/:devEui`](#patch-apisensorsdeveui)
+  - Mediciones: [`GET /api/measurements`](#get-apimeasurements)
+  - Alertas: [`GET /api/alerts`](#get-apialerts)
+  - Perfiles: [`GET /api/profiles`](#get-apiprofiles) · [`GET /api/profiles/:id`](#get-apiprofilesid) · [`POST /api/profiles`](#post-apiprofiles) · [`PATCH /api/profiles/:id`](#patch-apiprofilesid) · [`DELETE /api/profiles/:id`](#delete-apiprofilesid)
+  - Telemetría (solo gateway): [`POST /api/telemetry`](#post-apitelemetry)
+
+---
+
+## Convenciones generales
+
+| Tema | Detalle |
+|---|---|
+| **URL base** | `https://sensores-backend-2fa8.onrender.com` (producción) · `http://localhost:5000` (local). Todas las rutas empiezan con `/api`. |
+| **Formato** | JSON. Los `POST` y `PATCH` tienen que enviar `Content-Type: application/json`. |
+| **CORS** | Dominios definidos en `CORS_ORIGINS`. No aplica a llamadas desde un servidor. |
+| **Identificador de sensor** | El **DevEUI** (16 caracteres hex, ej. `a84041000181c4b1`), sin distinguir mayúsculas. Las respuestas también traen `id` (interno) para relacionar alertas y mediciones; las alertas y mediciones traen además `devEui`. |
+| **Otros IDs** | Cines, salas, perfiles y alertas: strings opacos (CUID). |
+| **Fechas** | ISO 8601 en UTC (ej. `2026-11-10T14:32:05.123Z`). |
+| **Unidades** | `temperature` °C · `humidity` % HR · `battery` % |
+| **Nulos** | `null` = **no hay dato**. Nunca se usa `0` para indicar ausencia. |
+| **Campos desconocidos** | Se ignoran (en el body y en la query). |
+| **Request id** | Cada respuesta trae el header `X-Request-Id` (o respeta el que mande el cliente). |
+
+---
+
+## Autenticación y permisos
+
+- **Lectura (`GET`)**: pública, sin clave.
+- **Escritura**: header `X-API-Key: <clave>` con el permiso que corresponda:
+
+| Permiso | Habilita |
+|---|---|
+| `sensors:write` | `PATCH /api/sensors/:devEui` |
+| `profiles:write` | `POST`, `PATCH`, `DELETE /api/profiles` |
+
+- La clave de administrador (`ADMIN_API_KEY`) tiene todos los permisos.
+- Las demás claves se crean con `npm run clients -- create` (ver [README](../README.md#42-scripts)).
+- Orden de controles en una escritura: primero la clave (`401`/`403`), después los datos (`400`), después la existencia de lo referenciado (`404`/`409`).
+- Una clave inválida o revocada responde `401 INVALID_API_KEY` en **cualquier** ruta, también en los `GET`.
+- `POST /api/telemetry` no pide clave: lo usa el gateway, que no puede enviarla.
+
+---
+
+## Errores
+
+Todas las respuestas de error tienen la misma forma:
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "temperatureMin: La temperatura mínima (30) tiene que ser menor que la máxima (10).",
+    "details": [
+      { "field": "temperatureMin", "message": "La temperatura mínima (30) tiene que ser menor que la máxima (10)." }
+    ],
+    "requestId": "4f9c2a1e-7d0b-4c38-9a51-2b6f0e1d3c77"
+  }
+}
+```
+
+| Campo | Para qué |
+|---|---|
+| `code` | Estable, en inglés. **Para programar contra él** (no comparar mensajes). |
+| `message` | En español, listo para mostrarle a una persona. Puede cambiar de redacción. |
+| `details` | Solo en `VALIDATION_ERROR`: un elemento por campo con problema. |
+| `requestId` | Identifica la petición en los logs del servidor. Pedirlo al reportar un problema. |
+
+| HTTP | `code` | Cuándo |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Datos faltantes, de tipo incorrecto o fuera de regla (ver `details`) |
+| 400 | `INVALID_JSON` | El body no es JSON válido |
+| 400 | `BODY_REQUIRED` | `POST`/`PATCH` sin body |
+| 401 | `API_KEY_REQUIRED` | Escritura sin header `X-API-Key` |
+| 401 | `INVALID_API_KEY` | Clave inexistente o revocada |
+| 403 | `FORBIDDEN` | La clave no tiene el permiso necesario (el mensaje dice cuál) |
+| 404 | `ROUTE_NOT_FOUND` | La ruta no existe |
+| 404 | `SENSOR_NOT_FOUND` · `PROFILE_NOT_FOUND` · `CINEMA_NOT_FOUND` · `ROOM_NOT_FOUND` | El recurso pedido o referenciado no existe |
+| 409 | `PROFILE_IN_USE` | Se intenta borrar un perfil asignado a salas |
+| 409 | `CONFLICT` | Otro conflicto de integridad de datos |
+| 413 | `PAYLOAD_TOO_LARGE` | Body de más de 100 kB |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | Body enviado sin `Content-Type: application/json` |
+| 500 | `INTERNAL_ERROR` | Error inesperado (el detalle queda en el log con el `requestId`) |
+| 503 | `SERVICE_UNAVAILABLE` | La base de datos no responde; reintentar en unos segundos |
+
+---
+
+## Resumen de endpoints
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| `GET` | `/api/health` | Público | Estado del servicio y de la base |
+| `GET` | `/api/me` | Público | Identidad y permisos de la clave enviada |
+| `GET` | `/api/stats` | Público | Indicadores generales o de un cine |
+| `GET` | `/api/dashboard` | Público | Los mismos indicadores en forma plana (la usa el frontend) |
+| `GET` | `/api/cinemas` | Público | Cines con resumen de estado |
+| `GET` | `/api/cinemas/:id` | Público | Un cine con sus salas y sensores |
+| `GET` | `/api/rooms` | Público | Salas (filtro `cinemaId`) |
+| `GET` | `/api/sensors` | Público | Sensores con estado y ubicación |
+| `GET` | `/api/sensors/:devEui` | Público | Un sensor |
+| `GET` | `/api/sensors/:devEui/measurements` | Público | Histórico de un sensor por rango (`preset`) |
+| `PATCH` | `/api/sensors/:devEui` | `sensors:write` | Cambiar nombre y sala |
+| `GET` | `/api/measurements` | Público | Histórico paginado |
+| `GET` | `/api/alerts` | Público | Alertas (filtro `active`) |
+| `GET` | `/api/profiles` | Público | Perfiles |
+| `GET` | `/api/profiles/:id` | Público | Un perfil |
+| `POST` | `/api/profiles` | `profiles:write` | Crear perfil |
+| `PATCH` | `/api/profiles/:id` | `profiles:write` | Editar perfil (reevalúa alertas) |
+| `DELETE` | `/api/profiles/:id` | `profiles:write` | Borrar perfil sin uso |
+| `POST` | `/api/telemetry` | Gateway | Lectura de un sensor |
+
+---
+
+## Objetos de respuesta
+
+### Sensor
+
+Misma forma en `GET /api/sensors`, `GET /api/sensors/:devEui`, `PATCH /api/sensors/:devEui` y dentro de `GET /api/cinemas/:id`.
+
+```json
+{
+  "id": "cmwbh9pn800002ovzsutfk54c",
+  "devEui": "a84041000181c4b1",
+  "name": "Cabina 1 - A",
+  "temperature": 27.3,
+  "humidity": 48,
+  "battery": 94,
+  "lastSeen": "2026-11-11T02:05:19.330Z",
+  "status": "online",
+  "room":    { "id": "room_1", "cinemaId": "cin_1", "name": "Cabina 1", "type": "projection", "profileId": "prof_proy" },
+  "cinema":  { "id": "cin_1", "name": "Cine Centro", "address": "Av. Siempre Viva 123" },
+  "profile": { "id": "prof_proy", "name": "Proyección", "description": "Cabinas de proyección",
+               "temperatureMin": 18, "temperatureMax": 24, "humidityMin": 30, "humidityMax": 60 }
+}
+```
+
+- `status`: `online` | `offline`.
+- `room`, `cinema` y `profile` son `null` si el sensor no tiene sala.
+- `temperature`, `humidity`, `battery`, `lastSeen` y `name` pueden ser `null`.
+
+### Measurement
+
+```json
+{ "id": "…", "sensorId": "…", "timestamp": "2026-11-11T02:00:00.000Z",
+  "temperature": 22.4, "humidity": 51, "battery": 95, "createdAt": "…" }
+```
+
+`timestamp` es la hora de la lectura (del gateway); `createdAt`, cuándo se guardó.
+
+### Alert
+
+```json
+{ "id": "…", "sensorId": "…", "devEui": "a84041000181c4b3", "type": "temperature_high",
+  "temperature": 26, "humidity": null, "createdAt": "…", "resolvedAt": null, "active": true }
+```
+
+- `type`: `temperature_high` | `temperature_low` | `humidity_high` | `humidity_low`.
+- `temperature`/`humidity`: lecturas del sensor al abrirse la alerta. `null` = no había dato.
+- Hay como máximo una alerta activa por sensor y tipo. Se resuelve sola cuando la métrica vuelve a rango.
+
+### Profile
+
+```json
+{ "id": "…", "name": "Proyección", "description": null,
+  "temperatureMin": 18, "temperatureMax": 24, "humidityMin": 30, "humidityMax": 60 }
+```
+
+### Room
+
+```json
+{ "id": "…", "cinemaId": "…", "name": "Cabina 1", "type": "projection", "profileId": "…" }
+```
+
+`type`: texto libre; el frontend usa `projection`, `hall`, `lobby`, `storage`, `other`.
+
+---
+
+## Sistema
+
+### `GET /api/health`
+
+También en `/health`. Para monitoreo (UptimeRobot, health check de Render).
+
+```json
+{ "status": "ok", "database": "ok", "schema": "ok", "uptimeSeconds": 3600, "timestamp": "…" }
+```
+
+| Campo | Valores |
+|---|---|
+| `status` | `ok` · `degraded` (faltan migraciones) · `error` (sin base) |
+| `database` | `ok` · `unreachable` |
+| `schema` | `ok` · `outdated` (hay migraciones sin aplicar) · `unknown` |
+
+HTTP `200` si la base responde; `503` si no.
+
+### `GET /api/me`
+
+Devuelve quién sos según la clave enviada.
+
+```json
+{ "authenticated": true,
+  "client": { "id": "…", "name": "App de Juan", "type": "client" },
+  "permissions": ["sensors:write"] }
+```
+
+- Sin clave: `{ "authenticated": false, "client": null, "permissions": [] }`.
+- Clave inválida: `401 INVALID_API_KEY`.
+- Administrador: `client.type = "admin"`, con todos los permisos.
+
+---
+
+## Indicadores
+
+### `GET /api/stats`
+
+| Query | Tipo | Descripción |
+|---|---|---|
+| `cinemaId` | string, opcional | Limita todo a un cine (`404 CINEMA_NOT_FOUND` si no existe) |
+
+```json
+{
+  "generatedAt": "2026-11-11T02:05:45.637Z",
+  "cinemaId": null,
+  "cinemas": 2,
+  "rooms": 3,
+  "sensors": { "total": 3, "online": 3, "offline": 0, "withActiveAlerts": 1, "unassigned": 0 },
+  "alerts": { "active": 1, "byType": { "temperature_high": 1, "temperature_low": 0, "humidity_high": 0, "humidity_low": 0 } },
+  "averages": { "temperature": 24.7, "humidity": 50 }
+}
+```
+
+- `alerts.active` cuenta **alertas**.
+- `sensors.withActiveAlerts` cuenta **sensores** con al menos una alerta.
+- `averages` promedia solo los sensores **online**, redondeado a 1 decimal. Es `null` si no hay datos.
+
+### `GET /api/dashboard`
+
+Los mismos datos en la forma plana que usa el frontend:
+
+```json
+{ "cinemaCount": 2, "sensorCount": 3, "sensorsOnline": 3, "sensorsOffline": 0,
+  "activeAlerts": 2, "sensorsWithAlerts": 1, "sensorsAlert": 1,
+  "avgTemperature": 21.7, "avgHumidity": 60 }
+```
+
+`sensorsAlert` está **obsoleto** (igual a `sensorsWithAlerts`); se mantiene por compatibilidad.
+
+---
+
+## Cines
+
+### `GET /api/cinemas`
+
+```json
+[{ "id": "cin_1", "name": "Cine Centro", "address": "…", "status": "attention",
+   "sensorCount": 1, "sensorsOnline": 1, "sensorsOffline": 0,
+   "activeAlerts": 2, "sensorsWithAlerts": 1 }]
+```
+
+`status`: `attention` si hay algún sensor offline o alguna alerta activa. Si no, `ok`.
+
+### `GET /api/cinemas/:id`
+
+El resumen anterior más `rooms`: cada sala (`id`, `name`, `type`, `profileId`) con su lista de `sensors` en la forma [Sensor](#sensor). `404 CINEMA_NOT_FOUND`.
+
+---
+
+## Salas
+
+### `GET /api/rooms`
+
+Query opcional `cinemaId`. Devuelve un arreglo de [Room](#room) ordenado por nombre.
+
+---
+
+## Sensores
+
+### `GET /api/sensors`
+
+Arreglo de [Sensor](#sensor), ordenado por nombre.
+
+### `GET /api/sensors/:devEui`
+
+Un [Sensor](#sensor). `404 SENSOR_NOT_FOUND`.
+
+### `GET /api/sensors/:devEui/measurements`
+
+| Query | Valores | Default |
+|---|---|---|
+| `preset` | `24h` · `7d` · `30d` · `3m` (91 días) · `6m` (182 días) · `all` | `24h` |
+
+Arreglo de [Measurement](#measurement), de la más vieja a la más nueva. Un `preset` inválido responde `400`. Con `all` no hay límite de filas.
+
+### `PATCH /api/sensors/:devEui`
+
+Requiere `sensors:write`.
+
+```json
+{ "name": "Cabina 1 - A", "roomId": "room_1" }
+```
+
+| Campo | Regla |
+|---|---|
+| `name` | Texto obligatorio, 1 a 100 caracteres (se recortan espacios) |
+| `roomId` | Obligatorio, tiene que existir (`404 ROOM_NOT_FOUND`) |
+
+Devuelve el [Sensor](#sensor) actualizado. Las alertas del sensor se reevalúan con el perfil de la sala nueva.
+
+---
+
+## Mediciones
+
+### `GET /api/measurements`
+
+| Query | Descripción | Default |
+|---|---|---|
+| `devEui` | Filtrar por sensor (DevEUI) | — |
+| `sensorId` | Filtrar por sensor (`id` interno) | — |
+| `cinemaId` | Filtrar por cine | — |
+| `page` | Entero ≥ 1 | `1` |
+| `pageSize` | Entero ≥ 1 (sin máximo) | `20` |
+
+```json
+{ "rows": [{ "id": "…", "timestamp": "…", "temperature": 22.4, "humidity": 51, "battery": 95,
+             "sensorId": "…", "devEui": "a84041000181c4b1", "sensorName": "Cabina 1 - A",
+             "roomName": "Cabina 1", "cinemaName": "Cine Centro" }],
+  "total": 1520, "page": 1, "pageSize": 20 }
+```
+
+De la más nueva a la más vieja.
+
+---
+
+## Alertas
+
+### `GET /api/alerts`
+
+| Query | Valores |
+|---|---|
+| `active` | `true` · `false` · omitido = todas |
+
+Arreglo de [Alert](#alert), de la más nueva a la más vieja. Un valor distinto de `true`/`false` responde `400`.
+
+---
+
+## Perfiles
+
+### `GET /api/profiles`
+
+Arreglo de [Profile](#profile), ordenado por nombre.
+
+### `GET /api/profiles/:id`
+
+Un [Profile](#profile). `404 PROFILE_NOT_FOUND`.
+
+### `POST /api/profiles`
+
+Requiere `profiles:write`.
+
+```json
+{ "name": "Depósito", "description": "Opcional",
+  "temperatureMin": 5, "temperatureMax": 30, "humidityMin": 10, "humidityMax": 90 }
+```
+
+| Campo | Regla |
+|---|---|
+| `name` | Texto obligatorio, hasta 100 caracteres |
+| `description` | Texto opcional, hasta 500. `""` o `null` = sin descripción |
+| `temperatureMin/Max`, `humidityMin/Max` | Obligatorios. Número o texto numérico (`"18.5"`); el mínimo tiene que ser **menor** que el máximo |
+
+Responde `201` con el [Profile](#profile).
+
+### `PATCH /api/profiles/:id`
+
+Requiere `profiles:write`. Mismos campos, todos opcionales. El chequeo mínimo < máximo se hace con los valores finales. Las alertas de los sensores que usan el perfil se reevalúan en el momento.
+
+### `DELETE /api/profiles/:id`
+
+Requiere `profiles:write`. Responde `204` sin cuerpo.
+- `404 PROFILE_NOT_FOUND` si el perfil no existe.
+- `409 PROFILE_IN_USE` si alguna sala lo usa.
+
+---
+
+## Telemetría
+
+### `POST /api/telemetry`
+
+**Uso exclusivo del gateway LoRaWAN.** Sin clave. No se documenta a terceros.
+
+```json
+{ "devEUI": "A84041000181C4B1", "deviceName": "Sensor A", "gatewayTime": "2026-11-11T02:00:00Z",
+  "temperature": 22.4, "humidity": 51, "battery": 95 }
+```
+
+| Campo | Regla |
+|---|---|
+| `devEUI` | Obligatorio (texto). Se normaliza a minúsculas |
+| `deviceName` | Opcional. Solo se usa como nombre al crear el sensor |
+| `gatewayTime` | Opcional. Si falta o es inválido, se usa la hora del servidor |
+| `temperature`, `humidity`, `battery` | Opcionales. Número, texto numérico o `null`. Si un campo no viene, el sensor conserva su último valor |
+
+- Responde `200` con el texto `OK`, igual que antes.
+- Si falla la evaluación de alertas, igual responde `200`: la lectura ya quedó guardada.
+- `400 VALIDATION_ERROR` si falta `devEUI` o un valor no es numérico.

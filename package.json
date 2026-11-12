@@ -1,11 +1,13 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "API de monitoreo de temperatura y humedad (LoRaWAN)",
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "test": "node --test \"test/*.test.js\"",
+    "clients": "node scripts/api-clients.js"
   },
   "keywords": [],
   "author": "",
