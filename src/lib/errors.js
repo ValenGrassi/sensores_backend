@@ -8,19 +8,69 @@
  *       "code": "SENSOR_NOT_FOUND",          // estable: para programar contra él
  *       "message": "No existe un sensor…",   // para mostrarle a una persona
  *       "details": [ { "field", "message" } ], // solo en errores de validación
+ *       "retryAfterSeconds": 45, "limit": {…}, // solo en 429 RATE_LIMITED
  *       "requestId": "…"                      // para rastrear el caso en los logs
  *     }
  *   }
  */
 
 class ApiError extends Error {
-  constructor(status, code, message, details) {
+  /** `extra`: campos adicionales para el cuerpo del error (p. ej. retryAfterSeconds en un 429). */
+  constructor(status, code, message, details, extra) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.details = details;
+    this.extra = extra;
   }
+}
+
+const RATE_LIMIT_MESSAGES = {
+  requests: (limit, wait) =>
+    `Hiciste demasiadas solicitudes (límite: ${limit}). Esperá ${wait} y volvé a intentar.`,
+  history: (limit, wait) =>
+    `Hiciste demasiadas consultas de historial (límite: ${limit}). Esperá ${wait} y volvé a intentar.`,
+  writes: (limit, wait) =>
+    `Hiciste demasiadas modificaciones (límite: ${limit}). Esperá ${wait} y volvé a intentar.`,
+  auth: (limit, wait) =>
+    `Hubo demasiados intentos con una clave de API inválida desde tu conexión (límite: ${limit}). ` +
+    `Revisá la clave y esperá ${wait} antes de volver a intentar.`,
+};
+
+function formatCount(value) {
+  return value.toLocaleString("es-AR");
+}
+
+function formatWindow(seconds) {
+  if (seconds === 60) return "por minuto";
+  if (seconds === 86400) return "por día";
+  if (seconds % 60 === 0) return `cada ${seconds / 60} minutos`;
+  return `cada ${seconds} segundos`;
+}
+
+/** "45 segundos", "3 minutos", "5 h 12 min". */
+function formatWait(seconds) {
+  if (seconds < 60) return seconds === 1 ? "1 segundo" : `${seconds} segundos`;
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return minutes === 1 ? "1 minuto" : `${minutes} minutos`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
+}
+
+/**
+ * 429: se superó un límite de pedidos.
+ * scope: "requests" | "history" | "writes" | "auth".
+ */
+function rateLimited({ scope, limit, windowSeconds, retryAfterSeconds }) {
+  const limitText = `${formatCount(limit)} ${formatWindow(windowSeconds)}`;
+  const message = RATE_LIMIT_MESSAGES[scope](limitText, formatWait(retryAfterSeconds));
+
+  return new ApiError(429, "RATE_LIMITED", message, undefined, {
+    retryAfterSeconds,
+    limit: { scope, max: limit, windowSeconds },
+  });
 }
 
 /** 400 con la lista de campos inválidos. */
@@ -39,6 +89,8 @@ function notFound(code, message) {
 
 const errors = {
   validation: validationError,
+
+  rateLimited,
 
   invalidJson: () =>
     new ApiError(400, "INVALID_JSON", "El cuerpo de la solicitud no es un JSON válido."),
@@ -88,6 +140,14 @@ const errors = {
   cinemaNotFound: (id) => notFound("CINEMA_NOT_FOUND", `No existe un cine con id "${id}".`),
 
   roomNotFound: (id) => notFound("ROOM_NOT_FOUND", `No existe una sala con id "${id}".`),
+
+  alertCursorNotFound: (id) =>
+    validationError([
+      {
+        field: "cursor",
+        message: `No existe una alerta con id "${id}" en este listado. Usá el id de la última alerta que recibiste.`,
+      },
+    ]),
 
   profileInUse: (roomCount) =>
     new ApiError(

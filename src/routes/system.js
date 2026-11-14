@@ -43,16 +43,24 @@ async function health(req, res) {
   });
 }
 
-/** GET /api/me — quién sos según la clave enviada y qué podés escribir. */
+/**
+ * GET /api/me — quién sos según la clave enviada, qué podés escribir y cuánto
+ * te queda de los límites de pedidos. "ip" es la IP con la que te ve el
+ * servidor (sirve para verificar que detrás del proxy se detecta bien).
+ */
 function me(req, res) {
+  const rateLimit = req.app.locals.rateLimiter?.status(req) ?? { enabled: false };
+
   if (!req.client) {
-    return res.json({ authenticated: false, client: null, permissions: [] });
+    return res.json({ authenticated: false, client: null, permissions: [], ip: req.ip, rateLimit });
   }
 
   res.json({
     authenticated: true,
     client: { id: req.client.id, name: req.client.name, type: req.client.type },
     permissions: expandPermissions(req.client.permissions),
+    ip: req.ip,
+    rateLimit,
   });
 }
 

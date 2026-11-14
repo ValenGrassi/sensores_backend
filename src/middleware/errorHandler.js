@@ -73,6 +73,7 @@ function errorHandler(error, req, res, next) {
       code: apiError.code,
       message: apiError.message,
       ...(apiError.details && { details: apiError.details }),
+      ...apiError.extra,
       requestId: req.id,
     },
   });

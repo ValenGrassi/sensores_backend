@@ -27,6 +27,42 @@ function readPositiveInt(name, fallback) {
   return value;
 }
 
+function readBoolean(name, fallback) {
+  const raw = process.env[name]?.trim().toLowerCase();
+  if (raw === undefined || raw === "") return fallback;
+  if (["true", "1", "on", "yes", "si", "sí"].includes(raw)) return true;
+  if (["false", "0", "off", "no"].includes(raw)) return false;
+
+  console.warn(`[config] ${name}="${process.env[name]}" no es true/false. Se usa ${fallback}.`);
+  return fallback;
+}
+
+/** Cantidad de proxies delante del servidor (Express "trust proxy"). 0 = ninguno. */
+function readTrustProxy(name, fallback) {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0) {
+    console.warn(`[config] ${name}="${raw}" tiene que ser un entero mayor o igual a 0. Se usa ${fallback}.`);
+    return fallback;
+  }
+  return value;
+}
+
+function readTimeZone(name, fallback) {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+
+  try {
+    new Intl.DateTimeFormat("es-AR", { timeZone: raw });
+    return raw;
+  } catch {
+    console.warn(`[config] ${name}="${raw}" no es una zona horaria válida (ej. America/Argentina/Buenos_Aires). Se usa ${fallback}.`);
+    return fallback;
+  }
+}
+
 const corsOrigins = readList("CORS_ORIGINS", DEFAULT_CORS_ORIGINS);
 
 const config = {
@@ -42,6 +78,41 @@ const config = {
 
   /** Clave con todos los permisos (la tuya). Sin definir = nadie puede escribir salvo clientes creados con el script. */
   adminApiKey: process.env.ADMIN_API_KEY?.trim() || null,
+
+  /**
+   * Proxies delante del servidor. En Render es 1: así req.ip es la IP real de
+   * quien llama (la usa el límite de pedidos). Verificable en GET /api/me → "ip".
+   */
+  trustProxy: readTrustProxy("TRUST_PROXY", 1),
+
+  /** Zona horaria para agrupar el historial por día (series agregadas). */
+  timeZone: readTimeZone("TIME_ZONE", "America/Argentina/Buenos_Aires"),
+
+  /**
+   * Límites de pedidos. La telemetría del gateway NUNCA se limita.
+   * - anonymous: sin clave, contado por IP.
+   * - client: con clave de un tercero, contado por clave.
+   * - La clave de administrador no tiene límites.
+   * "history" son las consultas pesadas: historial de mediciones y de alertas.
+   */
+  rateLimit: {
+    enabled: readBoolean("RATE_LIMIT_ENABLED", true),
+    anonymous: {
+      perMinute: 120,
+      perDay: 30000,
+      historyPerMinute: 20,
+      historyPerDay: 500,
+    },
+    client: {
+      perMinute: 300,
+      perDay: 50000,
+      historyPerMinute: 30,
+      historyPerDay: 1000,
+      writesPerMinute: 30,
+    },
+    /** Intentos con una clave inválida, por IP, antes de bloquear un rato. */
+    authFailures: { limit: 20, windowMinutes: 10 },
+  },
 };
 
 module.exports = config;

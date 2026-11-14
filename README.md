@@ -59,8 +59,10 @@ backend/
 ├── prisma.config.ts               # Config de la CLI de Prisma (usa DIRECT_URL)
 ├── scripts/
 │   └── api-clients.js             # Crear / listar / revocar claves de terceros
-├── test/
-│   └── alerts.test.js             # Tests de la lógica de alertas (npm test)
+├── test/                          # npm test (no necesita base de datos)
+│   ├── alerts.test.js             # Lógica de alertas
+│   ├── rateLimit.test.js          # Límites de pedidos
+│   └── measurements.test.js       # Elección de resolución del historial
 ├── src/
 │   ├── server.js                  # Arranque: carga .env, escucha el puerto, apagado ordenado
 │   ├── app.js                     # Arma la app: middlewares y rutas, en orden
@@ -71,10 +73,12 @@ backend/
 │   │   ├── validation.js          # Validación de body y query sin dependencias
 │   │   ├── apiKeys.js             # Generar, hashear y resolver claves de API
 │   │   ├── permissions.js         # Permisos de escritura disponibles
+│   │   ├── rateLimit.js           # Contadores por ventana e IP de cada cliente
 │   │   └── migrations.js          # Detecta migraciones sin aplicar
 │   ├── middleware/
 │   │   ├── requestId.js           # Header X-Request-Id
 │   │   ├── auth.js                # identifyClient + requirePermission
+│   │   ├── rateLimit.js           # Límites de pedidos (por IP o por clave)
 │   │   └── errorHandler.js        # 404 JSON y manejo central de errores
 │   ├── routes/                    # Un archivo por recurso
 │   │   ├── telemetry.js  sensors.js  profiles.js  cinemas.js  rooms.js
@@ -82,6 +86,7 @@ backend/
 │   ├── services/
 │   │   ├── alerts.js              # Lógica de alertas (planAlertChanges + evaluateSensorAlerts)
 │   │   ├── sensors.js             # Estado online/offline y forma pública del sensor
+│   │   ├── measurements.js        # Historial agregado (promedios por hora o día)
 │   │   └── stats.js               # Indicadores de /api/stats y /api/dashboard
 │   └── generated/prisma/          # Cliente Prisma generado — NO se versiona
 ├── .env.example
@@ -112,6 +117,9 @@ npm test                      # tests de la lógica de alertas (no necesitan bas
 | `CORS_ORIGINS` | No | `https://sensorescinemark.netlify.app` | Dominios que pueden llamar desde un navegador, separados por coma. `*` = cualquiera |
 | `PORT` | No | `5000` | Render lo define solo |
 | `SENSOR_OFFLINE_MINUTES` | No | `30` | Minutos sin datos para considerar un sensor offline |
+| `RATE_LIMIT_ENABLED` | No | `true` | `false` apaga los límites de pedidos (para emergencias) |
+| `TRUST_PROXY` | No | `1` | Cantidad de proxies delante del servidor. En Render es `1`. Si `GET /api/me` no muestra tu IP real, ver [7.3](#73-verificar-la-ip-después-de-desplegar) |
+| `TIME_ZONE` | No | `America/Argentina/Buenos_Aires` | Zona horaria para agrupar el historial por día |
 
 Si no definís ninguna variable nueva, el backend se comporta como antes en CORS, puerto y offline. La única diferencia es que **nadie puede escribir** hasta que definas `ADMIN_API_KEY` o crees un cliente.
 
@@ -120,7 +128,7 @@ Si no definís ninguna variable nueva, el backend se comporta como antes en CORS
 | Script | Para qué |
 |---|---|
 | `npm start` / `npm run dev` | Levantar el servidor |
-| `npm test` | Tests de la lógica de alertas |
+| `npm test` | Tests de alertas, límites de pedidos e historial (no necesitan base) |
 | `npm run clients -- admin-key` | Generar una clave para `ADMIN_API_KEY` |
 | `npm run clients -- create --name "App de Juan" --permissions sensors:write` | Crear una clave para un tercero (se muestra **una sola vez**) |
 | `npm run clients -- list` | Listar clientes, permisos, estado y último uso |
@@ -143,6 +151,25 @@ Si no definís ninguna variable nueva, el backend se comporta como antes en CORS
 - En la base solo se guarda el hash SHA-256 de cada clave.
 - Una clave inválida o revocada responde `401` en cualquier petición, aunque sea un `GET`. Así quien integra se entera enseguida.
 - Tu frontend guarda la clave de administrador en el navegador. Se carga en **Configuración → Acceso de administrador**, y la manda solo en las escrituras.
+
+### 5.1 Límites de pedidos
+
+Protegen la instancia de Render, su ancho de banda y la base de datos de un uso excesivo (por error o a propósito). Los valores están en `src/config.js` → `rateLimit`.
+
+| | Sin clave (por IP) | Clave de tercero (por clave) | Tu clave de admin |
+|---|---|---|---|
+| Pedidos | 120/min · 30.000/día | 300/min · 50.000/día | Sin límite |
+| Consultas de historial | 20/min · 500/día | 30/min · 1.000/día | Sin límite |
+| Escrituras | — | 30/min | Sin límite |
+
+- **La telemetría del gateway no tiene ningún límite** y no gasta el cupo de la IP del cine.
+- "Historial" = `GET /api/sensors/:devEui/measurements`, `GET /api/measurements` y `GET /api/alerts` (salvo `?active=true`).
+- 20 claves inválidas en 10 minutos desde una IP → `429` para los pedidos con clave de esa IP durante esa ventana.
+- Al pasarse: `429 RATE_LIMITED` con `Retry-After`. Cada respuesta trae `RateLimit-Limit`, `RateLimit-Remaining` y `RateLimit-Reset`.
+- Los contadores viven en memoria: se reinician si el servicio se reinicia. Alcanza porque corre una sola instancia.
+- Topes de tamaño: `pageSize` hasta 500; `GET /api/alerts` devuelve 200 por defecto (hasta 500, con paginación por `cursor`); el historial de un sensor usa promedios por hora o por día en rangos de más de 7 días.
+
+Tu frontend hace ~4 pedidos por minuto por pestaña abierta, así que el límite por IP alcanza para ~30 pestañas desde la misma red.
 
 ---
 
@@ -187,21 +214,32 @@ Cada métrica (temperatura y humedad) se evalúa **por separado** contra el perf
 
 ## 7. Despliegue
 
-### 7.1 Orden recomendado para pasar a esta versión sin cortar el servicio
+### 7.1 Orden recomendado para pasar a una versión nueva sin cortar el servicio
 
-1. **Frontend primero (Netlify).** Funciona con el backend viejo y con el nuevo. Además ya muestra `—` cuando falta un dato. El frontend viejo se rompe si recibe `null` en una alerta.
-2. **Migración**, desde tu computadora: `npx prisma migrate deploy`. Es compatible con el backend viejo: está probado que responde igual con la migración aplicada.
-3. **Variables en Render:** `ADMIN_API_KEY` (generala con `npm run clients -- admin-key`) y, si hace falta, `CORS_ORIGINS`.
+1. **Frontend primero (Netlify).** Las versiones nuevas del frontend funcionan con el backend anterior y con el nuevo.
+2. **Migraciones** (solo si la versión trae alguna nueva), desde tu computadora: `npx prisma migrate deploy`. Se diseñan para ser compatibles con el backend anterior.
+3. **Variables en Render**, si la versión agrega alguna obligatoria.
 4. **Backend (Render):** subí los cambios. Verificá `GET /api/health`: tiene que decir `"status": "ok"` y `"schema": "ok"`.
-5. **En tu frontend:** Configuración → Acceso de administrador → pegá la misma clave.
 
 El gateway no necesita ningún cambio en ningún paso.
+
+**Límites de pedidos (esta versión):** no trae migraciones ni variables obligatorias. Orden: frontend → backend → [verificar la IP](#73-verificar-la-ip-después-de-desplegar).
 
 ### 7.2 Render
 
 - **Build:** tiene que incluir `npx prisma generate` (el cliente no se versiona). Opcional: agregar `npx prisma migrate deploy` al build para no correr las migraciones a mano. Eso requiere `DIRECT_URL` configurada en Render.
 - **Start:** `npm start`.
 - **Health check path** (opcional): `/api/health`.
+
+### 7.3 Verificar la IP después de desplegar
+
+Los límites sin clave se cuentan por IP, así que el servidor tiene que ver la IP real de cada cliente detrás del proxy de Render (que además pasa por Cloudflare).
+
+1. Abrí `https://<tu-backend>/api/me` desde tu computadora y mirá el campo `ip`.
+2. Compará con tu IP pública (por ejemplo, buscando "cuál es mi IP"). Hacé lo mismo desde el celular con datos móviles: tiene que dar otra IP.
+3. Si `ip` no es la tuya (por ejemplo, empieza con `104.`, `162.158.` o `172.6`/`172.7`, que son de Cloudflare), poné `TRUST_PROXY=2` en Render y repetí.
+
+Si algo falla con los límites en producción, `RATE_LIMIT_ENABLED=false` en Render los apaga sin tocar el código.
 
 ---
 
@@ -217,7 +255,7 @@ El gateway no necesita ningún cambio en ningún paso.
 
 ## 9. Limitaciones conocidas
 
-- **Sin límite de peticiones ni tope de página.** `pageSize` no tiene máximo, y `GET /api/sensors/:devEui/measurements?preset=all` devuelve todo el histórico.
+- **Límites en memoria:** si algún día corren varias instancias del backend, cada una cuenta por separado (habría que pasar los contadores a una base compartida, como Redis). La telemetría no tiene límite a propósito.
 - **Telemetría:** los pasos no son atómicos, y una lectura vieja reenviada pisa el estado actual. `Sensor.battery` es entero: una batería `3.6` se guarda como `3` en el sensor, mientras que en `Measurement` queda bien.
 - **Alertas:** dos lecturas simultáneas del mismo sensor pueden crear un duplicado momentáneo, que se corrige en la evaluación siguiente. No hay histéresis: un valor que oscila sobre el límite abre y cierra alertas seguidas.
 - `GET /api/measurements` ignora `preset`, `from`, `to` y `roomId`. `GET /api/sensors` ignora filtros.
