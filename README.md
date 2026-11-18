@@ -74,6 +74,7 @@ backend/
 │   │   ├── apiKeys.js             # Generar, hashear y resolver claves de API
 │   │   ├── permissions.js         # Permisos de escritura disponibles
 │   │   ├── rateLimit.js           # Contadores por ventana e IP de cada cliente
+│   │   ├── clientIp.js            # IP real de quien llama (CF-Connecting-IP o proxy)
 │   │   └── migrations.js          # Detecta migraciones sin aplicar
 │   ├── middleware/
 │   │   ├── requestId.js           # Header X-Request-Id
@@ -118,7 +119,8 @@ npm test                      # tests de la lógica de alertas (no necesitan bas
 | `PORT` | No | `5000` | Render lo define solo |
 | `SENSOR_OFFLINE_MINUTES` | No | `30` | Minutos sin datos para considerar un sensor offline |
 | `RATE_LIMIT_ENABLED` | No | `true` | `false` apaga los límites de pedidos (para emergencias) |
-| `TRUST_PROXY` | No | `1` | Cantidad de proxies delante del servidor. En Render es `1`. Si `GET /api/me` no muestra tu IP real, ver [7.3](#73-verificar-la-ip-después-de-desplegar) |
+| `CLIENT_IP_HEADER` | No | `cf-connecting-ip` | Header con la IP real de quien llama. En Render lo escribe Cloudflare. `none` = no usar ningún header. Ver [7.3](#73-verificar-la-ip-después-de-desplegar) |
+| `TRUST_PROXY` | No | `1` | Solo se usa si el pedido no trae `CLIENT_IP_HEADER` (por ejemplo en local): cantidad de proxies delante del servidor |
 | `TIME_ZONE` | No | `America/Argentina/Buenos_Aires` | Zona horaria para agrupar el historial por día |
 
 Si no definís ninguna variable nueva, el backend se comporta como antes en CORS, puerto y offline. La única diferencia es que **nadie puede escribir** hasta que definas `ADMIN_API_KEY` o crees un cliente.
@@ -233,11 +235,14 @@ El gateway no necesita ningún cambio en ningún paso.
 
 ### 7.3 Verificar la IP después de desplegar
 
-Los límites sin clave se cuentan por IP, así que el servidor tiene que ver la IP real de cada cliente detrás del proxy de Render (que además pasa por Cloudflare).
+Los límites sin clave se cuentan por IP, así que el servidor tiene que ver la IP real de cada cliente.
+
+En Render, cada pedido pasa por Cloudflare y por el proxy de Render, y la cantidad de saltos en `X-Forwarded-For` no es fija. Por eso la IP se toma del header `CF-Connecting-IP`, que escribe Cloudflare con la IP real y pisa el que mande el cliente. Si ese header falta, se usa `X-Forwarded-For` según `TRUST_PROXY`.
 
 1. Abrí `https://<tu-backend>/api/me` desde tu computadora y mirá el campo `ip`.
-2. Compará con tu IP pública (por ejemplo, buscando "cuál es mi IP"). Hacé lo mismo desde el celular con datos móviles: tiene que dar otra IP.
-3. Si `ip` no es la tuya (por ejemplo, empieza con `104.`, `162.158.` o `172.6`/`172.7`, que son de Cloudflare), poné `TRUST_PROXY=2` en Render y repetí.
+2. Compará con tu IP pública (por ejemplo, https://api.ipify.org). Recargá varias veces: tiene que dar siempre la misma.
+3. Desde el celular con datos móviles tiene que dar otra IP.
+4. Si da una IP de Cloudflare (empieza con `104.`, `162.158.` o `172.64.` a `172.71.`) y cambia en cada pedido, el header no está llegando: avisá antes de tocar `TRUST_PROXY`.
 
 Si algo falla con los límites en producción, `RATE_LIMIT_ENABLED=false` en Render los apaga sin tocar el código.
 

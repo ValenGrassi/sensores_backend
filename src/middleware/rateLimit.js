@@ -57,7 +57,7 @@ function createRateLimiter(settings) {
     const client = ignoreClient ? null : req.client;
     if (client?.type === "admin") return { tier: "admin" };
     if (client) return { tier: "client", key: `key:${client.id}`, limits: settings.client };
-    return { tier: "anonymous", key: ipKey(req.ip), limits: settings.anonymous };
+    return { tier: "anonymous", key: ipKey(req.clientIp ?? req.ip), limits: settings.anonymous };
   }
 
   function requestRules(who, req) {
@@ -125,7 +125,7 @@ function createRateLimiter(settings) {
   function authFailures(req, res, next) {
     if (!enabled || !req.get("X-API-Key")) return next();
 
-    const key = ipKey(req.ip);
+    const key = ipKey(req.clientIp ?? req.ip);
     const rule = { scope: "auth", store: stores.authFailures, limit: settings.authFailures.limit };
     const now = Date.now();
     const state = rule.store.peek(key, now);

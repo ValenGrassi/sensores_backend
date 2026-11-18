@@ -50,6 +50,17 @@ function readTrustProxy(name, fallback) {
   return value;
 }
 
+/** Nombre de un header HTTP, o null si vale "none" (no usar ningún header). */
+function readHeaderName(name, fallback) {
+  const raw = process.env[name]?.trim().toLowerCase();
+  if (raw === undefined || raw === "") return fallback;
+  if (["none", "off", "false", "0"].includes(raw)) return null;
+  if (/^[a-z0-9-]+$/.test(raw)) return raw;
+
+  console.warn(`[config] ${name}="${process.env[name]}" no es un nombre de header válido. Se usa ${fallback}.`);
+  return fallback;
+}
+
 function readTimeZone(name, fallback) {
   const raw = process.env[name]?.trim();
   if (!raw) return fallback;
@@ -80,9 +91,13 @@ const config = {
   adminApiKey: process.env.ADMIN_API_KEY?.trim() || null,
 
   /**
-   * Proxies delante del servidor. En Render es 1: así req.ip es la IP real de
-   * quien llama (la usa el límite de pedidos). Verificable en GET /api/me → "ip".
+   * Header con la IP real de quien llama (la usa el límite de pedidos).
+   * En Render es CF-Connecting-IP, que escribe Cloudflare. "none" = no usar
+   * ningún header y tomar la IP de TRUST_PROXY. Verificable en GET /api/me → "ip".
    */
+  clientIpHeader: readHeaderName("CLIENT_IP_HEADER", "cf-connecting-ip"),
+
+  /** Proxies delante del servidor (Express "trust proxy"). Solo se usa si falta CLIENT_IP_HEADER. */
   trustProxy: readTrustProxy("TRUST_PROXY", 1),
 
   /** Zona horaria para agrupar el historial por día (series agregadas). */

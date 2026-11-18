@@ -19,6 +19,7 @@ const cors = require("cors");
 const express = require("express");
 const config = require("./config");
 const { requestId } = require("./middleware/requestId");
+const { clientIp } = require("./lib/clientIp");
 const { identifyClient } = require("./middleware/auth");
 const { createRateLimiter } = require("./middleware/rateLimit");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
@@ -62,7 +63,7 @@ function createApp() {
   app.locals.rateLimiter = rateLimiter;
 
   app.disable("x-powered-by");
-  // Detrás del proxy de Render: req.ip = IP real del cliente (TRUST_PROXY, por defecto 1).
+  // Respaldo para la IP del cliente cuando falta CLIENT_IP_HEADER (ver src/lib/clientIp.js).
   app.set("trust proxy", config.trustProxy);
 
   app.use(requestId);
@@ -71,6 +72,7 @@ function createApp() {
 
   app.use("/api/telemetry", telemetryRoutes);
 
+  app.use(clientIp(config.clientIpHeader));
   app.get(["/", "/health", "/api/health"], rateLimiter.anonymous);
   app.use(system.publicRouter);
 

@@ -11,6 +11,7 @@ const { FixedWindowStore, ipKey } = require("../src/lib/rateLimit");
 const { createRateLimiter, historyLimit } = require("../src/middleware/rateLimit");
 const { errorHandler } = require("../src/middleware/errorHandler");
 const { requestId } = require("../src/middleware/requestId");
+const { clientIp, resolveClientIp } = require("../src/lib/clientIp");
 
 const SETTINGS = {
   enabled: true,
@@ -45,6 +46,7 @@ async function startApp(settings = SETTINGS) {
 
   app.use(requestId);
   app.post("/api/telemetry", (req, res) => res.sendStatus(200));
+  app.use(clientIp("cf-connecting-ip"));
   app.get(["/health"], limiter.anonymous, (req, res) => res.json({ ok: true }));
   app.use("/api", limiter.authFailures);
   app.use("/api", fakeIdentify);
@@ -64,9 +66,10 @@ async function startApp(settings = SETTINGS) {
     base,
     limiter,
     close: () => new Promise((resolve) => server.close(resolve)),
-    call: async (method, path, { key, ip = "203.0.113.10" } = {}) => {
+    call: async (method, path, { key, ip = "203.0.113.10", cf } = {}) => {
       const headers = { "X-Forwarded-For": ip };
       if (key) headers["X-API-Key"] = key;
+      if (cf) headers["CF-Connecting-IP"] = cf;
       const res = await fetch(base + path, { method, headers });
       const text = await res.text();
       let body;
@@ -118,6 +121,39 @@ test("ipKey normaliza IPv4, IPv4-en-IPv6 e IPv6 por red /64", () => {
 });
 
 // ─── Middleware completo ────────────────────────────────────────
+
+test("resolveClientIp: usa el header si trae una IP válida; si no, req.ip", () => {
+  const fakeReq = (headers, ip = "172.68.175.59") => ({
+    ip,
+    get: (name) => headers[name.toLowerCase()],
+  });
+  const header = "cf-connecting-ip";
+  assert.equal(resolveClientIp(fakeReq({ "cf-connecting-ip": "170.150.154.61" }), header), "170.150.154.61");
+  assert.equal(resolveClientIp(fakeReq({ "cf-connecting-ip": " 2800:810:1::5 " }), header), "2800:810:1::5");
+  assert.equal(resolveClientIp(fakeReq({}), header), "172.68.175.59", "sin header: req.ip");
+  assert.equal(resolveClientIp(fakeReq({ "cf-connecting-ip": "no-es-ip" }), header), "172.68.175.59");
+  assert.equal(resolveClientIp(fakeReq({ "cf-connecting-ip": "1.2.3.4, 5.6.7.8" }), header), "172.68.175.59");
+  assert.equal(resolveClientIp(fakeReq({ "cf-connecting-ip": "170.150.154.61" }), null), "172.68.175.59", "header desactivado");
+});
+
+test("detrás de Cloudflare: el cupo sigue a CF-Connecting-IP aunque cambie el proxy", async () => {
+  const app = await startApp();
+  try {
+    // Como en Render: cada pedido llega por un nodo de Cloudflare distinto.
+    const results = await repeat(6, (i) =>
+      app.call("GET", "/api/light", { ip: `172.68.175.${i + 1}`, cf: "170.150.154.61" })
+    );
+    assert.deepEqual(results.map((r) => r.status), [200, 200, 200, 200, 200, 429]);
+
+    const other = await app.call("GET", "/api/light", { ip: "172.68.175.1", cf: "190.12.3.4" });
+    assert.equal(other.status, 200, "otra IP real, mismo nodo de Cloudflare: cupo propio");
+
+    const me = await app.call("GET", "/api/me", { cf: "190.12.3.4" });
+    assert.equal(me.body.requests.perMinute.remaining, 3);
+  } finally {
+    await app.close();
+  }
+});
 
 test("anónimo: límite por minuto, headers y 429 con el formato de error", async () => {
   const app = await startApp();

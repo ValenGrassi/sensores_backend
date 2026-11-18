@@ -50,16 +50,17 @@ async function health(req, res) {
  */
 function me(req, res) {
   const rateLimit = req.app.locals.rateLimiter?.status(req) ?? { enabled: false };
+  const ip = req.clientIp ?? req.ip;
 
   if (!req.client) {
-    return res.json({ authenticated: false, client: null, permissions: [], ip: req.ip, rateLimit });
+    return res.json({ authenticated: false, client: null, permissions: [], ip, rateLimit });
   }
 
   res.json({
     authenticated: true,
     client: { id: req.client.id, name: req.client.name, type: req.client.type },
     permissions: expandPermissions(req.client.permissions),
-    ip: req.ip,
+    ip,
     rateLimit,
   });
 }
