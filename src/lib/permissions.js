@@ -3,7 +3,7 @@
  *
  * La lectura (GET) es pública y no necesita clave.
  * Lo estructural (crear sensores, cines y salas) no está expuesto en la API:
- * los sensores se dan de alta solos cuando el gateway manda datos, y los cines
+ * los sensores se registran con `npm run sensors -- add <devEui>`, y los cines
  * y salas se cargan en la base. Ningún permiso habilita eso.
  */
 

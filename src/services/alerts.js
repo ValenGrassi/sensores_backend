@@ -9,6 +9,10 @@
  *   valor en rango  -> no debe haber alertas activas de esa métrica
  *   sin valor       -> no se toca nada de esa métrica (falta de dato ≠ normalidad)
  *
+ * Para abrir una alerta hacen falta READINGS_TO_OPEN lecturas seguidas fuera de
+ * rango en la misma dirección (evita alertas por un valor suelto). Para cerrarla
+ * alcanza una lectura en rango. Las lecturas sin ese dato no cuentan.
+ *
  * Todo lo que no corresponde se resuelve, y lo que falta se crea, en una sola
  * transacción. Como el resultado depende solo del estado actual, se puede
  * ejecutar las veces que haga falta: si una ejecución falla, la siguiente
@@ -26,8 +30,18 @@ const METRICS = [
 
 const ALERT_TYPES = ["temperature_high", "temperature_low", "humidity_high", "humidity_low"];
 
+/** Lecturas seguidas fuera de rango necesarias para abrir una alerta. */
+const READINGS_TO_OPEN = 2;
+
+/** Cuántas lecturas recientes se miran (alcanza aunque haya algunas sin datos). */
+const RECENT_READINGS = 10;
+
+function isValue(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 function classify(value, min, max) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "unknown";
+  if (!isValue(value)) return "unknown";
   if (value > max) return "high";
   if (value < min) return "low";
   return "ok";
@@ -36,7 +50,7 @@ function classify(value, min, max) {
 /**
  * Función pura: decide qué alertas resolver y cuáles crear.
  *
- * @param readings     { temperature, humidity } actuales del sensor
+ * @param readings     últimas lecturas { temperature, humidity }, de la más nueva a la más vieja
  * @param profile      perfil de la sala, o null si el sensor no está asignado
  * @param activeAlerts alertas activas del sensor, de la más vieja a la más nueva
  * @returns { toResolve: string[] (ids), toCreate: string[] (tipos) }
@@ -50,7 +64,8 @@ function planAlertChanges(readings, profile, activeAlerts) {
   const toCreate = [];
 
   for (const metric of METRICS) {
-    const state = classify(readings[metric.key], profile[metric.min], profile[metric.max]);
+    const classifyValue = (value) => classify(value, profile[metric.min], profile[metric.max]);
+    const state = classifyValue(readings[0]?.[metric.key]);
     if (state === "unknown") continue;
 
     const wantedType = state === "ok" ? null : `${metric.key}_${state}`;
@@ -66,7 +81,10 @@ function planAlertChanges(readings, profile, activeAlerts) {
     }
 
     if (wantedType && !kept) {
-      toCreate.push(wantedType);
+      // Se abre solo si las últimas lecturas con dato están todas igual de mal.
+      const lastValues = readings.map((reading) => reading[metric.key]).filter(isValue).slice(0, READINGS_TO_OPEN);
+      const confirmed = lastValues.length === READINGS_TO_OPEN && lastValues.every((value) => classifyValue(value) === state);
+      if (confirmed) toCreate.push(wantedType);
     }
   }
 
@@ -78,7 +96,7 @@ function planAlertChanges(readings, profile, activeAlerts) {
  * Se llama al recibir telemetría, al cambiar un perfil y al mover un sensor de sala.
  */
 async function evaluateSensorAlerts(sensorId) {
-  const [sensor, activeAlerts] = await Promise.all([
+  const [sensor, activeAlerts, recent] = await Promise.all([
     prisma.sensor.findUnique({
       where: { id: sensorId },
       include: { room: { include: { profile: true } } },
@@ -88,11 +106,19 @@ async function evaluateSensorAlerts(sensorId) {
       orderBy: { createdAt: "asc" },
       select: { id: true, type: true },
     }),
+    prisma.measurement.findMany({
+      where: { sensorId },
+      orderBy: { timestamp: "desc" },
+      take: RECENT_READINGS,
+      select: { temperature: true, humidity: true },
+    }),
   ]);
 
   if (!sensor) return null;
 
-  const plan = planAlertChanges(sensor, sensor.room?.profile ?? null, activeAlerts);
+  // Sin histórico (sensor recién registrado): se usa su estado actual.
+  const readings = recent.length > 0 ? recent : [sensor];
+  const plan = planAlertChanges(readings, sensor.room?.profile ?? null, activeAlerts);
   if (plan.toResolve.length === 0 && plan.toCreate.length === 0) return plan;
 
   const now = new Date();
@@ -145,4 +171,4 @@ function toAlertDTO(alert) {
   };
 }
 
-module.exports = { ALERT_TYPES, planAlertChanges, evaluateSensorAlerts, toAlertDTO };
+module.exports = { ALERT_TYPES, READINGS_TO_OPEN, planAlertChanges, evaluateSensorAlerts, toAlertDTO };

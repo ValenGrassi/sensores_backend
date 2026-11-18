@@ -87,6 +87,13 @@ const config = {
   /** Minutos sin datos para considerar un sensor "offline". */
   sensorOfflineMinutes: readPositiveInt("SENSOR_OFFLINE_MINUTES", 30),
 
+  /**
+   * true = un devEUI desconocido que llega por telemetría crea un sensor nuevo (lo de antes).
+   * false = la lectura se descarta y queda en el log; los sensores se registran con
+   * `npm run sensors -- add <devEui>`.
+   */
+  telemetryAutoCreate: readBoolean("TELEMETRY_AUTO_CREATE", false),
+
   /** Clave con todos los permisos (la tuya). Sin definir = nadie puede escribir salvo clientes creados con el script. */
   adminApiKey: process.env.ADMIN_API_KEY?.trim() || null,
 

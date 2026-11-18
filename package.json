@@ -7,7 +7,8 @@
     "dev": "node src/server.js",
     "start": "node src/server.js",
     "test": "node --test \"test/*.test.js\"",
-    "clients": "node scripts/api-clients.js"
+    "clients": "node scripts/api-clients.js",
+    "sensors": "node scripts/sensors.js"
   },
   "keywords": [],
   "author": "",

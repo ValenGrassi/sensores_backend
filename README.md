@@ -42,10 +42,11 @@ El proyecto usa **CommonJS** (`require`) y no tiene paso de build. No tiene depe
 ```
 
 1. El gateway envía cada lectura a `POST /api/telemetry`. Ese endpoint **no cambió**: mismo path, sin clave, mismos campos, responde `200 OK`.
-2. El backend busca el sensor por su `devEUI`. Si no existe, **lo crea automáticamente**; si existe, actualiza sus valores actuales.
-3. Se guarda una fila en `Measurement` (histórico).
-4. Se reevalúan las alertas del sensor (ver [6.3](#63-alertas)). Si esa evaluación falla, la lectura igual queda guardada y se responde `200` para que el gateway no la reenvíe.
-5. Las lecturas (`GET`) son públicas. Las escrituras exigen una clave de API con el permiso correspondiente.
+2. El backend busca el sensor por su `devEUI`. Si no está registrado, **descarta la lectura** y lo deja en el log (ver [6.1](#61-registro-de-sensores)). Igual responde `200`.
+3. Se guarda una fila en `Measurement` (histórico), salvo que sea una **repetición**: misma temperatura y humedad que la última, a menos de 30 s.
+4. Si la lectura es **más nueva** que la última del sensor, actualiza su estado actual. Una lectura vieja reenviada va al histórico, pero no pisa el estado.
+5. Con la lectura más nueva se reevalúan las alertas del sensor (ver [6.3](#63-alertas)). Si esa evaluación falla, la lectura igual queda guardada y se responde `200` para que el gateway no la reenvíe.
+6. Las lecturas (`GET`) son públicas. Las escrituras exigen una clave de API con el permiso correspondiente.
 
 ---
 
@@ -58,10 +59,12 @@ backend/
 │   └── migrations/                # 8 migraciones SQL versionadas
 ├── prisma.config.ts               # Config de la CLI de Prisma (usa DIRECT_URL)
 ├── scripts/
-│   └── api-clients.js             # Crear / listar / revocar claves de terceros
+│   ├── api-clients.js             # Crear / listar / revocar claves de terceros
+│   └── sensors.js                 # Registrar y listar sensores
 ├── test/                          # npm test (no necesita base de datos)
 │   ├── alerts.test.js             # Lógica de alertas
 │   ├── rateLimit.test.js          # Límites de pedidos
+│   ├── telemetry.test.js          # Fecha del gateway y batería
 │   └── measurements.test.js       # Elección de resolución del historial
 ├── src/
 │   ├── server.js                  # Arranque: carga .env, escucha el puerto, apagado ordenado
@@ -118,6 +121,7 @@ npm test                      # tests de la lógica de alertas (no necesitan bas
 | `CORS_ORIGINS` | No | `https://sensorescinemark.netlify.app` | Dominios que pueden llamar desde un navegador, separados por coma. `*` = cualquiera |
 | `PORT` | No | `5000` | Render lo define solo |
 | `SENSOR_OFFLINE_MINUTES` | No | `30` | Minutos sin datos para considerar un sensor offline |
+| `TELEMETRY_AUTO_CREATE` | No | `false` | `true` = un devEUI desconocido crea un sensor nuevo, como antes. Con `false` hay que registrarlo con `npm run sensors -- add` |
 | `RATE_LIMIT_ENABLED` | No | `true` | `false` apaga los límites de pedidos (para emergencias) |
 | `CLIENT_IP_HEADER` | No | `cf-connecting-ip` | Header con la IP real de quien llama. En Render lo escribe Cloudflare. `none` = no usar ningún header. Ver [7.3](#73-verificar-la-ip-después-de-desplegar) |
 | `TRUST_PROXY` | No | `1` | Solo se usa si el pedido no trae `CLIENT_IP_HEADER` (por ejemplo en local): cantidad de proxies delante del servidor |
@@ -130,7 +134,9 @@ Si no definís ninguna variable nueva, el backend se comporta como antes en CORS
 | Script | Para qué |
 |---|---|
 | `npm start` / `npm run dev` | Levantar el servidor |
-| `npm test` | Tests de alertas, límites de pedidos e historial (no necesitan base) |
+| `npm test` | Tests de alertas, telemetría, límites de pedidos e historial (no necesitan base) |
+| `npm run sensors -- add <devEui> ["Nombre"]` | Registrar un sensor antes de instalarlo |
+| `npm run sensors -- list` | Listar sensores, sala, estado y última lectura |
 | `npm run clients -- admin-key` | Generar una clave para `ADMIN_API_KEY` |
 | `npm run clients -- create --name "App de Juan" --permissions sensors:write` | Crear una clave para un tercero (se muestra **una sola vez**) |
 | `npm run clients -- list` | Listar clientes, permisos, estado y último uso |
@@ -146,7 +152,7 @@ Si no definís ninguna variable nueva, el backend se comporta como antes en CORS
 | `POST /api/telemetry` | El gateway (sin clave; no se documenta a terceros) |
 | `PATCH /api/sensors/:devEui` (nombre y sala) | Clave con `sensors:write` o la de administrador |
 | `POST`, `PATCH`, `DELETE /api/profiles` | Clave con `profiles:write` o la de administrador |
-| Crear sensores, cines o salas | **Nadie por la API.** Los sensores se crean solos con la telemetría; cines y salas se cargan en la base |
+| Crear sensores, cines o salas | **Nadie por la API.** Los sensores se registran con `npm run sensors -- add`; cines y salas se cargan en la base |
 | Crear o revocar claves | Solo vos, con el script, desde tu computadora |
 
 - La clave se envía en el header `X-API-Key`.
@@ -177,11 +183,15 @@ Tu frontend hace ~4 pedidos por minuto por pestaña abierta, así que el límite
 
 ## 6. Reglas de negocio
 
-### 6.1 Alta automática de sensores
+### 6.1 Registro de sensores
 
 - El identificador público del sensor es su **DevEUI** LoRaWAN. Se guarda en minúsculas y es único.
-- Cuando llega una lectura de un DevEUI desconocido, se crea el sensor con `name = deviceName` y **sin sala**.
-- El nombre solo cambia después con `PATCH /api/sensors/:devEui`.
+- Un sensor se registra con `npm run sensors -- add <devEui> ["Nombre"]`, desde tu computadora. Queda **sin sala**: se la asignás desde el frontend (Sensores > el sensor > Configurar).
+- Si llega una lectura de un DevEUI no registrado, se descarta, se responde `200` igual y el log muestra `Sensor desconocido <devEui>` con el comando para registrarlo.
+- Con `TELEMETRY_AUTO_CREATE=true` vuelve el comportamiento anterior: el sensor se crea solo con `name = deviceName`.
+- Si `gatewayTime` viene más de 5 minutos en el futuro, se usa la hora del servidor. Si no, el sensor quedaría "congelado" esperando una lectura más nueva.
+- `Sensor.battery` es un porcentaje entero (se redondea); en `Measurement` queda el valor recibido.
+- Una lectura con la misma temperatura y humedad que la última, recibida menos de 30 s después, es la misma transmisión repetida: se ignora (responde `200`). En ago–sep 2026 hubo 581 así, a 2–3 s. Sin esto, una repetición contaría como "2 lecturas seguidas" para las alertas.
 
 ### 6.2 Estado online / offline
 
@@ -190,7 +200,7 @@ Tu frontend hace ~4 pedidos por minuto por pestaña abierta, así que el límite
 ### 6.3 Alertas
 
 Código: [src/services/alerts.js](src/services/alerts.js). Se evalúa en tres momentos:
-- con cada lectura de telemetría;
+- con cada lectura de telemetría (solo si es la más nueva del sensor);
 - al cambiar un perfil, para todos los sensores que lo usan;
 - al mover un sensor de sala.
 
@@ -198,11 +208,13 @@ Cada métrica (temperatura y humedad) se evalúa **por separado** contra el perf
 
 | Valor de la métrica | Resultado |
 |---|---|
-| mayor que el máximo | Tiene que haber una alerta activa `<métrica>_high`; las demás de esa métrica se resuelven |
-| menor que el mínimo | Tiene que haber una alerta activa `<métrica>_low`; las demás de esa métrica se resuelven |
+| mayor que el máximo | Tiene que haber una alerta activa `<métrica>_high`; las demás de esa métrica se resuelven. Se **abre** solo si la lectura anterior con dato también estaba por encima |
+| menor que el mínimo | Tiene que haber una alerta activa `<métrica>_low`; las demás de esa métrica se resuelven. Se **abre** solo si la lectura anterior con dato también estaba por debajo |
 | dentro del rango (límites inclusivos) | Se resuelven las alertas activas de esa métrica |
 | sin dato (`null`) | No se toca nada de esa métrica: que falte el dato no significa que esté bien |
 
+- Para abrir una alerta hacen falta **2 lecturas seguidas** fuera de rango (`READINGS_TO_OPEN`). Para cerrarla alcanza 1 en rango. Así un valor que oscila sobre el límite no abre y cierra alertas.
+- Las lecturas sin ese dato (el gateway manda algunas vacías) no cuentan ni cortan la racha.
 - Si el sensor no tiene sala o perfil, no se monitorea y se resuelven sus alertas.
 - Las alertas que hay que resolver y las que hay que crear se aplican en una sola transacción.
 - Si hubiera duplicados del mismo tipo, se conserva el más viejo.
@@ -261,7 +273,7 @@ Si algo falla con los límites en producción, `RATE_LIMIT_ENABLED=false` en Ren
 ## 9. Limitaciones conocidas
 
 - **Límites en memoria:** si algún día corren varias instancias del backend, cada una cuenta por separado (habría que pasar los contadores a una base compartida, como Redis). La telemetría no tiene límite a propósito.
-- **Telemetría:** los pasos no son atómicos, y una lectura vieja reenviada pisa el estado actual. `Sensor.battery` es entero: una batería `3.6` se guarda como `3` en el sensor, mientras que en `Measurement` queda bien.
-- **Alertas:** dos lecturas simultáneas del mismo sensor pueden crear un duplicado momentáneo, que se corrige en la evaluación siguiente. No hay histéresis: un valor que oscila sobre el límite abre y cierra alertas seguidas.
+- **Telemetría:** no hay índice único en `Measurement(sensorId, timestamp)`: las repeticiones reales llegan con timestamps distintos y no las frenaría. Las 581 repeticiones de ago–sep 2026 siguen en el histórico (no afectan promedios porque tienen los mismos valores).
+- **Alertas:** dos lecturas simultáneas del mismo sensor pueden crear un duplicado momentáneo, que se corrige en la evaluación siguiente.
 - `GET /api/measurements` ignora `preset`, `from`, `to` y `roomId`. `GET /api/sensors` ignora filtros.
 - No hay endpoints para cines y salas (alta, edición, baja), ni para desasignar un sensor.

@@ -240,7 +240,8 @@ Cada lectura, tal como llegó:
 
 - `type`: `temperature_high` | `temperature_low` | `humidity_high` | `humidity_low`.
 - `temperature`/`humidity`: lecturas del sensor al abrirse la alerta. `null` = no había dato.
-- Hay como máximo una alerta activa por sensor y tipo. Se resuelve sola cuando la métrica vuelve a rango.
+- Se abre cuando la métrica está fuera de rango en **2 lecturas seguidas** (un valor suelto no la dispara). Se resuelve sola con la primera lectura en rango.
+- Hay como máximo una alerta activa por sensor y tipo.
 
 ### Profile
 
@@ -521,11 +522,13 @@ Requiere `profiles:write`. Responde `204` sin cuerpo.
 
 | Campo | Regla |
 |---|---|
-| `devEUI` | Obligatorio (texto). Se normaliza a minúsculas |
-| `deviceName` | Opcional. Solo se usa como nombre al crear el sensor |
-| `gatewayTime` | Opcional. Si falta o es inválido, se usa la hora del servidor |
+| `devEUI` | Obligatorio (texto). Se normaliza a minúsculas. Tiene que estar registrado (`npm run sensors -- add`) |
+| `deviceName` | Opcional. Solo se usa como nombre si `TELEMETRY_AUTO_CREATE=true` y el sensor no existía |
+| `gatewayTime` | Opcional. Si falta, es inválido o está más de 5 minutos en el futuro, se usa la hora del servidor |
 | `temperature`, `humidity`, `battery` | Opcionales. Número, texto numérico o `null`. Si un campo no viene, el sensor conserva su último valor |
 
-- Responde `200` con el texto `OK`, igual que antes.
+- Responde `200` con el texto `OK`, igual que antes. También para un sensor no registrado: la lectura se descarta y queda en el log.
+- Una lectura más vieja que la última del sensor va al histórico, pero no cambia su estado ni sus alertas.
+- Una lectura con la misma temperatura y humedad que la última, recibida menos de 30 s después, se ignora: es la misma transmisión repetida.
 - Si falla la evaluación de alertas, igual responde `200`: la lectura ya quedó guardada.
 - `400 VALIDATION_ERROR` si falta `devEUI` o un valor no es numérico.
