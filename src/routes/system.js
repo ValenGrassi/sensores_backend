@@ -1,5 +1,6 @@
 const express = require("express");
 const prisma = require("../lib/prisma");
+const config = require("../config");
 const { expandPermissions } = require("../lib/permissions");
 const { checkMigrations, getMigrationState } = require("../lib/migrations");
 
@@ -14,9 +15,25 @@ function withTimeout(promise, ms) {
 }
 
 /**
- * GET /api/health (y /health) — para monitoreo.
+ * Si siguen llegando lecturas: "ok" si la más reciente de cualquier sensor tiene
+ * menos de SENSOR_OFFLINE_MINUTES; "stale" si no (gateway o internet del cine
+ * caídos); "none" si todavía no llegó ninguna.
+ */
+async function telemetryStatus() {
+  const { _max } = await prisma.sensor.aggregate({ _max: { lastSeen: true } });
+  const lastReadingAt = _max.lastSeen;
+  if (!lastReadingAt) return { telemetry: "none", lastReadingAt: null };
+
+  const minutes = (Date.now() - lastReadingAt.getTime()) / 60000;
+  return { telemetry: minutes < config.sensorOfflineMinutes ? "ok" : "stale", lastReadingAt };
+}
+
+/**
+ * GET /api/health (también /health y /api/v1/health) — para monitoreo.
  * 200 si responde la base; 503 si no. "schema": "outdated" avisa que falta
  * aplicar migraciones (el servicio funciona, pero no completo).
+ * "telemetry" avisa si el gateway dejó de mandar lecturas (no cambia el 200:
+ * la API sigue funcionando).
  */
 async function health(req, res) {
   let database = "ok";
@@ -24,6 +41,15 @@ async function health(req, res) {
     await withTimeout(prisma.$queryRaw`SELECT 1`, DB_CHECK_TIMEOUT_MS);
   } catch {
     database = "unreachable";
+  }
+
+  let readings = { telemetry: "unknown", lastReadingAt: null };
+  if (database === "ok") {
+    try {
+      readings = await withTimeout(telemetryStatus(), DB_CHECK_TIMEOUT_MS);
+    } catch {
+      // queda "unknown": la base respondió, pero esta consulta no
+    }
   }
 
   let migrations = getMigrationState();
@@ -38,6 +64,8 @@ async function health(req, res) {
     status,
     database,
     schema,
+    telemetry: readings.telemetry,
+    lastReadingAt: readings.lastReadingAt,
     uptimeSeconds: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
   });
@@ -74,6 +102,7 @@ const publicRouter = express.Router();
 publicRouter.get("/", index);
 publicRouter.get("/health", health);
 publicRouter.get("/api/health", health);
+publicRouter.get("/api/v1/health", health);
 
 const apiRouter = express.Router();
 apiRouter.get("/me", me);

@@ -125,12 +125,15 @@ const config = {
       historyPerMinute: 20,
       historyPerDay: 500,
     },
+    // Hay un solo cliente y todas sus pantallas comparten su clave: límites
+    // altos, pensados como freno ante un error (un bucle) o una clave filtrada,
+    // no como cupo. El techo real es la capacidad del servidor.
     client: {
-      perMinute: 300,
-      perDay: 50000,
-      historyPerMinute: 30,
-      historyPerDay: 1000,
-      writesPerMinute: 30,
+      perMinute: 3000,
+      perDay: 1000000,
+      historyPerMinute: 1200,
+      historyPerDay: 200000,
+      writesPerMinute: 120,
     },
     /** Intentos con una clave inválida, por IP, antes de bloquear un rato. */
     authFailures: { limit: 20, windowMinutes: 10 },

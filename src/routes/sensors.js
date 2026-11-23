@@ -129,7 +129,7 @@ router.get("/:devEui/measurements", historyLimit, async (req, res) => {
 });
 
 /**
- * PATCH /api/sensors/:devEui — cambiar nombre y sala.
+ * PATCH /api/sensors/:devEui — cambiar el nombre, la sala o los dos.
  * Requiere el permiso "sensors:write".
  */
 router.patch("/:devEui", requirePermission("sensors:write"), async (req, res) => {
@@ -137,25 +137,32 @@ router.patch("/:devEui", requirePermission("sensors:write"), async (req, res) =>
   const body = requireJsonBody(req);
 
   const check = validator(body);
-  const name = check.string("name", { required: true, maxLength: 100 });
-  const roomId = check.string("roomId", { required: true });
+  const name = check.string("name", { maxLength: 100 });
+  const roomId = check.string("roomId");
+  if (!check.has("name") && !check.has("roomId")) {
+    check.issue("body", 'Mandá al menos uno de los campos: "name" o "roomId".');
+  }
   check.done();
 
-  await findSensorOrThrow(devEui);
+  const current = await findSensorOrThrow(devEui);
 
-  const room = await prisma.room.findUnique({ where: { id: roomId } });
-  if (!room) throw errors.roomNotFound(roomId);
+  if (roomId !== undefined) {
+    const room = await prisma.room.findUnique({ where: { id: roomId } });
+    if (!room) throw errors.roomNotFound(roomId);
+  }
 
   const updated = await prisma.sensor.update({
     where: { devEui },
-    data: { name, roomId },
+    data: { ...(name !== undefined && { name }), ...(roomId !== undefined && { roomId }) },
   });
 
   // La sala nueva puede tener otro perfil: se reevalúan las alertas ya.
-  try {
-    await evaluateSensorAlerts(updated.id);
-  } catch (error) {
-    console.error(`[alertas] No se pudieron reevaluar las alertas de ${devEui}:`, error);
+  if (roomId !== undefined && roomId !== current.roomId) {
+    try {
+      await evaluateSensorAlerts(updated.id);
+    } catch (error) {
+      console.error(`[alertas] No se pudieron reevaluar las alertas de ${devEui}:`, error);
+    }
   }
 
   const sensor = await prisma.sensor.findUnique({

@@ -27,6 +27,7 @@ const config = require("../config");
 const { validator, requireJsonBody } = require("../lib/validation");
 const { evaluateSensorAlerts } = require("../services/alerts");
 const { normalizeDevEui } = require("../services/sensors");
+const { resolveClientIp } = require("../lib/clientIp");
 
 const router = express.Router();
 
@@ -86,7 +87,9 @@ async function findSensor(devEui, deviceName) {
 router.post("/", async (req, res) => {
   const body = requireJsonBody(req);
 
-  console.log(`[telemetría] ${new Date().toISOString()} ${JSON.stringify(body)}`);
+  // La IP de origen sirve para decidir si se puede aceptar solo la del gateway.
+  const ip = resolveClientIp(req, config.clientIpHeader);
+  console.log(`[telemetría] ${new Date().toISOString()} ip=${ip} ${JSON.stringify(body)}`);
 
   const check = validator(body);
 

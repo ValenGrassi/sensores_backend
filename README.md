@@ -167,9 +167,11 @@ Protegen la instancia de Render, su ancho de banda y la base de datos de un uso 
 
 | | Sin clave (por IP) | Clave de tercero (por clave) | Tu clave de admin |
 |---|---|---|---|
-| Pedidos | 120/min · 30.000/día | 300/min · 50.000/día | Sin límite |
-| Consultas de historial | 20/min · 500/día | 30/min · 1.000/día | Sin límite |
-| Escrituras | — | 30/min | Sin límite |
+| Pedidos | 120/min · 30.000/día | 3.000/min · 1.000.000/día | Sin límite |
+| Consultas de historial | 20/min · 500/día | 1.200/min · 200.000/día | Sin límite |
+| Escrituras | — | 120/min | Sin límite |
+
+Los de clave de tercero son altos a propósito: hay un solo cliente y todas sus pantallas comparten su clave.
 
 - **La telemetría del gateway no tiene ningún límite** y no gasta el cupo de la IP del cine.
 - "Historial" = `GET /api/sensors/:devEui/measurements`, `GET /api/measurements` y `GET /api/alerts` (salvo `?active=true`).
@@ -246,6 +248,7 @@ El gateway no necesita ningún cambio en ningún paso.
 - **Build:** tiene que incluir `npx prisma generate` (el cliente no se versiona). Opcional: agregar `npx prisma migrate deploy` al build para no correr las migraciones a mano. Eso requiere `DIRECT_URL` configurada en Render.
 - **Start:** `npm start`.
 - **Health check path** (opcional): `/api/health`.
+- **Monitoreo:** `/api/health` informa `"telemetry": "ok"` o `"stale"` (no llegan lecturas hace más de 30 min). En UptimeRobot, un monitor de palabra clave que busque `"telemetry":"ok"` avisa cuando el gateway deja de mandar, aunque la API siga funcionando.
 
 ### 7.3 Verificar la IP después de desplegar
 

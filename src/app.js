@@ -56,6 +56,21 @@ function corsOptions() {
   };
 }
 
+/** Rutas de la API (sin la telemetría del gateway, que se monta aparte). */
+function apiRoutes({ withDashboard }) {
+  const router = express.Router();
+  router.use(system.apiRouter);
+  router.use(statsRoutes);
+  if (withDashboard) router.use(statsRoutes.dashboardRouter);
+  router.use("/sensors", sensorRoutes);
+  router.use("/profiles", profileRoutes);
+  router.use("/cinemas", cinemaRoutes);
+  router.use("/rooms", roomRoutes);
+  router.use("/alerts", alertRoutes);
+  router.use("/measurements", measurementRoutes);
+  return router;
+}
+
 function createApp() {
   const app = express();
 
@@ -73,21 +88,18 @@ function createApp() {
   app.use("/api/telemetry", telemetryRoutes);
 
   app.use(clientIp(config.clientIpHeader));
-  app.get(["/", "/health", "/api/health"], rateLimiter.anonymous);
+  app.get(["/", "/health", "/api/health", "/api/v1/health"], rateLimiter.anonymous);
   app.use(system.publicRouter);
 
   app.use("/api", rateLimiter.authFailures);
   app.use("/api", identifyClient);
   app.use(rateLimiter.requests);
 
-  app.use("/api", system.apiRouter);
-  app.use("/api", statsRoutes);
-  app.use("/api/sensors", sensorRoutes);
-  app.use("/api/profiles", profileRoutes);
-  app.use("/api/cinemas", cinemaRoutes);
-  app.use("/api/rooms", roomRoutes);
-  app.use("/api/alerts", alertRoutes);
-  app.use("/api/measurements", measurementRoutes);
+  // /api/v1 es la versión estable para terceros; /api, la de tu frontend.
+  // Mismo contenido, salvo /dashboard (interno). Un cambio incompatible
+  // futuro iría a /api/v2 sin tocar /api/v1.
+  app.use("/api/v1", apiRoutes({ withDashboard: false }));
+  app.use("/api", apiRoutes({ withDashboard: true }));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

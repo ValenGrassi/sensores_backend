@@ -3,7 +3,7 @@ const prisma = require("../lib/prisma");
 const { errors } = require("../lib/errors");
 const { validator } = require("../lib/validation");
 const { historyLimit } = require("../middleware/rateLimit");
-const { toAlertDTO } = require("../services/alerts");
+const { ALERT_INCLUDE, toAlertDTO } = require("../services/alerts");
 const { PRESETS, resolveDateRange } = require("../services/measurements");
 
 const router = express.Router();
@@ -52,7 +52,7 @@ router.get("/", historyUnlessActive, async (req, res) => {
 
   const alerts = await prisma.alert.findMany({
     where,
-    include: { sensor: { select: { devEui: true } } },
+    include: ALERT_INCLUDE,
     // id desempata alertas creadas en el mismo instante (temperatura y humedad juntas).
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit,

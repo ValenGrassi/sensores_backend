@@ -166,12 +166,32 @@ async function evaluateSensorAlerts(sensorId, attempt = 1) {
   return plan;
 }
 
-/** Forma pública de una alerta: agrega el devEui del sensor para no tener que cruzar datos. */
+/** Lo que hay que incluir en Prisma para armar una alerta completa. */
+const ALERT_INCLUDE = {
+  sensor: {
+    select: {
+      devEui: true,
+      name: true,
+      room: { select: { id: true, name: true, cinema: { select: { id: true, name: true } } } },
+    },
+  },
+};
+
+/**
+ * Forma pública de una alerta. Agrega el sensor y su ubicación ACTUAL (sala y
+ * cine), para no tener que cruzar con /api/sensors. null si no tiene sala.
+ */
 function toAlertDTO(alert) {
+  const room = alert.sensor?.room ?? null;
   return {
     id: alert.id,
     sensorId: alert.sensorId,
     devEui: alert.sensor?.devEui ?? null,
+    sensorName: alert.sensor?.name ?? null,
+    roomId: room?.id ?? null,
+    roomName: room?.name ?? null,
+    cinemaId: room?.cinema?.id ?? null,
+    cinemaName: room?.cinema?.name ?? null,
     type: alert.type,
     temperature: alert.temperature,
     humidity: alert.humidity,
@@ -181,4 +201,4 @@ function toAlertDTO(alert) {
   };
 }
 
-module.exports = { ALERT_TYPES, READINGS_TO_OPEN, planAlertChanges, evaluateSensorAlerts, toAlertDTO };
+module.exports = { ALERT_TYPES, READINGS_TO_OPEN, ALERT_INCLUDE, planAlertChanges, evaluateSensorAlerts, toAlertDTO };

@@ -20,9 +20,14 @@ router.get("/stats", async (req, res) => {
   res.json(await computeStats({ cinemaId }));
 });
 
-/** GET /api/dashboard — mismos datos en la forma plana que usa el frontend. */
-router.get("/dashboard", async (req, res) => {
+/**
+ * GET /api/dashboard — mismos datos en la forma plana que usa tu frontend.
+ * Es interno: no forma parte de /api/v1 (los terceros usan /stats).
+ */
+const dashboardRouter = express.Router();
+dashboardRouter.get("/dashboard", async (req, res) => {
   res.json(toDashboard(await computeStats()));
 });
 
 module.exports = router;
+module.exports.dashboardRouter = dashboardRouter;

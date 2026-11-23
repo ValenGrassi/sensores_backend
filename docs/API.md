@@ -27,7 +27,8 @@ Rutas en [`src/routes/`](../src/routes/), armadas en [`src/app.js`](../src/app.j
 
 | Tema | Detalle |
 |---|---|
-| **URL base** | `https://sensores-backend-2fa8.onrender.com` (producción) · `http://localhost:5000` (local). Todas las rutas empiezan con `/api`. |
+| **URL base** | `https://sensores-backend-2fa8.onrender.com` (producción) · `http://localhost:5000` (local). |
+| **Versión** | Los terceros usan **`/api/v1/...`**: es estable y solo recibe cambios compatibles (agregar campos, rutas o parámetros opcionales). Un cambio incompatible iría a `/api/v2`. `/api/...` es la misma API para tu frontend, más `/api/dashboard`. |
 | **Formato** | JSON. Los `POST` y `PATCH` tienen que enviar `Content-Type: application/json`. |
 | **CORS** | Dominios definidos en `CORS_ORIGINS`. No aplica a llamadas desde un servidor. |
 | **Identificador de sensor** | El **DevEUI** (16 caracteres hex, ej. `a84041000181c4b1`), sin distinguir mayúsculas. Las respuestas también traen `id` (interno) para relacionar alertas y mediciones; las alertas y mediciones traen además `devEui`. |
@@ -66,9 +67,11 @@ Cada cliente tiene un cupo de pedidos. Sin clave, el cliente es la **IP**; con u
 
 | | Sin clave (por IP) | Con clave (por clave) |
 |---|---|---|
-| **Pedidos** (todas las rutas) | 120 por minuto · 30.000 por día | 300 por minuto · 50.000 por día |
-| **Consultas de historial** (se suman a las anteriores) | 20 por minuto · 500 por día | 30 por minuto · 1.000 por día |
-| **Escrituras** (`POST`, `PATCH`, `DELETE`) | — (requieren clave) | 30 por minuto |
+| **Pedidos** (todas las rutas) | 120 por minuto · 30.000 por día | 3.000 por minuto · 1.000.000 por día |
+| **Consultas de historial** (se suman a las anteriores) | 20 por minuto · 500 por día | 1.200 por minuto · 200.000 por día |
+| **Escrituras** (`POST`, `PATCH`, `DELETE`) | — (requieren clave) | 120 por minuto |
+
+Los límites con clave son altos porque hay un solo cliente y todas sus pantallas comparten su clave: frenan un error (un bucle) o una clave filtrada, no el uso normal.
 
 - **Consultas de historial**: `GET /api/sensors/:devEui/measurements`, `GET /api/measurements` y `GET /api/alerts` (salvo `?active=true`, que es liviana).
 - **Claves inválidas**: después de 20 respuestas `401 INVALID_API_KEY` en 10 minutos desde una misma IP, los pedidos **con clave** desde esa IP reciben `429` hasta que pase la ventana. Sin clave se puede seguir leyendo.
@@ -236,9 +239,13 @@ Cada lectura, tal como llegó:
 ### Alert
 
 ```json
-{ "id": "…", "sensorId": "…", "devEui": "a84041000181c4b3", "type": "temperature_high",
-  "temperature": 26, "humidity": null, "createdAt": "…", "resolvedAt": null, "active": true }
+{ "id": "…", "sensorId": "…", "devEui": "a84041000181c4b3", "sensorName": "Norte - C",
+  "roomId": "room_3", "roomName": "Cabina Norte", "cinemaId": "cin_2", "cinemaName": "Cine Norte",
+  "type": "temperature_high", "temperature": 26, "humidity": null,
+  "createdAt": "…", "resolvedAt": null, "active": true }
 ```
+
+- `sensorName`, `roomId`, `roomName`, `cinemaId` y `cinemaName`: el sensor y su ubicación **actual** (si después se mueve de sala, muestran la nueva). `null` si no tiene nombre o sala.
 
 - `type`: `temperature_high` | `temperature_low` | `humidity_high` | `humidity_low`.
 - `temperature`/`humidity`: lecturas del sensor al abrirse la alerta. `null` = no había dato.
@@ -269,7 +276,8 @@ Cada lectura, tal como llegó:
 También en `/health`. Para monitoreo (UptimeRobot, health check de Render).
 
 ```json
-{ "status": "ok", "database": "ok", "schema": "ok", "uptimeSeconds": 3600, "timestamp": "…" }
+{ "status": "ok", "database": "ok", "schema": "ok", "telemetry": "ok",
+  "lastReadingAt": "2026-11-23T05:58:52.724Z", "uptimeSeconds": 3600, "timestamp": "…" }
 ```
 
 | Campo | Valores |
@@ -277,6 +285,8 @@ También en `/health`. Para monitoreo (UptimeRobot, health check de Render).
 | `status` | `ok` · `degraded` (faltan migraciones) · `error` (sin base) |
 | `database` | `ok` · `unreachable` |
 | `schema` | `ok` · `outdated` (hay migraciones sin aplicar) · `unknown` |
+| `telemetry` | `ok` (llegó una lectura en los últimos 30 min) · `stale` (no llegan lecturas: gateway o internet del cine) · `none` (nunca llegó ninguna). No cambia el `200`: la API sigue funcionando |
+| `lastReadingAt` | Hora de la lectura más reciente de cualquier sensor |
 
 HTTP `200` si la base responde; `503` si no.
 
@@ -339,7 +349,7 @@ Devuelve quién sos según la clave enviada, con qué IP te ve el servidor y cu�
 
 ### `GET /api/dashboard`
 
-Los mismos datos en la forma plana que usa el frontend:
+**Interno: solo en `/api`, no en `/api/v1`.** Los mismos datos en la forma plana que usa tu frontend:
 
 ```json
 { "cinemaCount": 2, "sensorCount": 3, "sensorsOnline": 3, "sensorsOffline": 0,
@@ -453,10 +463,10 @@ Requiere `sensors:write`.
 
 | Campo | Regla |
 |---|---|
-| `name` | Texto obligatorio, 1 a 100 caracteres (se recortan espacios) |
-| `roomId` | Obligatorio, tiene que existir (`404 ROOM_NOT_FOUND`) |
+| `name` | Opcional. Texto de 1 a 100 caracteres (se recortan espacios) |
+| `roomId` | Opcional. Tiene que existir (`404 ROOM_NOT_FOUND`) |
 
-Devuelve el [Sensor](#sensor) actualizado. Las alertas del sensor se reevalúan con el perfil de la sala nueva.
+Hay que mandar al menos uno de los dos (si no, `400`). Devuelve el [Sensor](#sensor) actualizado. Si cambia la sala, las alertas del sensor se reevalúan con el perfil de la sala nueva.
 
 ---
 
