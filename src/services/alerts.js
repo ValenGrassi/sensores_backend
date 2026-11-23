@@ -94,8 +94,13 @@ function planAlertChanges(readings, profile, activeAlerts) {
 /**
  * Evalúa las alertas de un sensor con sus valores actuales y aplica los cambios.
  * Se llama al recibir telemetría, al cambiar un perfil y al mover un sensor de sala.
+ *
+ * Si dos evaluaciones del mismo sensor corren a la vez, las dos pueden decidir
+ * crear la misma alerta. La base acepta una sola (índice único de alertas
+ * activas) y rechaza la otra con P2002; esa evaluación se repite una vez con el
+ * estado actualizado, y así queda todo consistente.
  */
-async function evaluateSensorAlerts(sensorId) {
+async function evaluateSensorAlerts(sensorId, attempt = 1) {
   const [sensor, activeAlerts, recent] = await Promise.all([
     prisma.sensor.findUnique({
       where: { id: sensorId },
@@ -147,7 +152,12 @@ async function evaluateSensorAlerts(sensorId) {
     );
   }
 
-  await prisma.$transaction(operations);
+  try {
+    await prisma.$transaction(operations);
+  } catch (error) {
+    if (error?.code === "P2002" && attempt === 1) return evaluateSensorAlerts(sensorId, 2);
+    throw error;
+  }
 
   const label = sensor.name || sensor.devEui;
   for (const type of plan.toCreate) console.log(`[alertas] Creada ${type} - ${label}`);

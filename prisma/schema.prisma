@@ -1,6 +1,8 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  // Índice único parcial en Alert (una sola alerta activa por sensor y tipo).
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -27,6 +29,9 @@ model Room {
   profile   Profile @relation(fields: [profileId], references: [id])
 
   sensors Sensor[]
+
+  @@index([cinemaId])
+  @@index([profileId])
 }
 
 model Profile {
@@ -61,6 +66,8 @@ model Sensor {
 
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+
+  @@index([roomId])
 }
 
 model Measurement {
@@ -79,6 +86,8 @@ model Measurement {
   createdAt DateTime @default(now())
 
   @@index([sensorId, timestamp])
+  // Historial de todos los sensores por fecha (GET /api/measurements).
+  @@index([timestamp])
 }
 
 enum AlertType {
@@ -103,6 +112,10 @@ model Alert {
   createdAt   DateTime  @default(now())
   resolvedAt  DateTime?
   active      Boolean   @default(true)
+
+  // La base garantiza una sola alerta activa por sensor y tipo (las resueltas no cuentan).
+  @@unique([sensorId, type], where: { active: true })
+  @@index([sensorId])
 }
 
 // Clientes externos autorizados a escribir (API keys).

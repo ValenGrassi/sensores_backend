@@ -56,7 +56,7 @@ El proyecto usa **CommonJS** (`require`) y no tiene paso de build. No tiene depe
 backend/
 ├── prisma/
 │   ├── schema.prisma              # Modelo de datos (fuente de verdad)
-│   └── migrations/                # 8 migraciones SQL versionadas
+│   └── migrations/                # 9 migraciones SQL versionadas
 ├── prisma.config.ts               # Config de la CLI de Prisma (usa DIRECT_URL)
 ├── scripts/
 │   ├── api-clients.js             # Crear / listar / revocar claves de terceros
@@ -217,7 +217,8 @@ Cada métrica (temperatura y humedad) se evalúa **por separado** contra el perf
 - Las lecturas sin ese dato (el gateway manda algunas vacías) no cuentan ni cortan la racha.
 - Si el sensor no tiene sala o perfil, no se monitorea y se resuelven sus alertas.
 - Las alertas que hay que resolver y las que hay que crear se aplican en una sola transacción.
-- Si hubiera duplicados del mismo tipo, se conserva el más viejo.
+- **La base garantiza una sola alerta activa por sensor y tipo** (índice único parcial `Alert_sensorId_type_key`). Si dos lecturas simultáneas intentan crear la misma, la base rechaza la segunda y esa evaluación se repite con el estado nuevo.
+- Si quedaran duplicados de antes, se conserva el más viejo.
 - La evaluación es idempotente: si una falla, la siguiente deja todo correcto.
 
 ### 6.4 Estado de un cine
@@ -274,6 +275,5 @@ Si algo falla con los límites en producción, `RATE_LIMIT_ENABLED=false` en Ren
 
 - **Límites en memoria:** si algún día corren varias instancias del backend, cada una cuenta por separado (habría que pasar los contadores a una base compartida, como Redis). La telemetría no tiene límite a propósito.
 - **Telemetría:** no hay índice único en `Measurement(sensorId, timestamp)`: las repeticiones reales llegan con timestamps distintos y no las frenaría. Las 581 repeticiones de ago–sep 2026 siguen en el histórico (no afectan promedios porque tienen los mismos valores).
-- **Alertas:** dos lecturas simultáneas del mismo sensor pueden crear un duplicado momentáneo, que se corrige en la evaluación siguiente.
 - `GET /api/measurements` ignora `preset`, `from`, `to` y `roomId`. `GET /api/sensors` ignora filtros.
 - No hay endpoints para cines y salas (alta, edición, baja), ni para desasignar un sensor.
