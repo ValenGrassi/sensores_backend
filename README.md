@@ -54,6 +54,7 @@ El proyecto usa **CommonJS** (`require`) y no tiene paso de build. No tiene depe
 
 ```
 backend/
+├── .github/workflows/tests.yml    # GitHub Actions: tests + contrato en cada push
 ├── prisma/
 │   ├── schema.prisma              # Modelo de datos (fuente de verdad)
 │   └── migrations/                # 9 migraciones SQL versionadas
@@ -63,9 +64,11 @@ backend/
 │   └── sensors.js                 # Registrar y listar sensores
 ├── test/                          # npm test (no necesita base de datos)
 │   ├── alerts.test.js             # Lógica de alertas
+│   ├── auth.test.js               # Cines y salas: solo la clave de administrador
 │   ├── rateLimit.test.js          # Límites de pedidos
 │   ├── telemetry.test.js          # Fecha del gateway y batería
-│   └── measurements.test.js       # Elección de resolución del historial
+│   ├── measurements.test.js       # Rangos de fechas y resolución del historial
+│   └── contract/                  # npm run test:contract: forma de /api/v1 (run.js + v1.json)
 ├── src/
 │   ├── server.js                  # Arranque: carga .env, escucha el puerto, apagado ordenado
 │   ├── app.js                     # Arma la app: middlewares y rutas, en orden
@@ -123,7 +126,7 @@ npm test                      # tests de la lógica de alertas (no necesitan bas
 | `SENSOR_OFFLINE_MINUTES` | No | `30` | Minutos sin datos para considerar un sensor offline |
 | `TELEMETRY_AUTO_CREATE` | No | `false` | `true` = un devEUI desconocido crea un sensor nuevo, como antes. Con `false` hay que registrarlo con `npm run sensors -- add` |
 | `RATE_LIMIT_ENABLED` | No | `true` | `false` apaga los límites de pedidos (para emergencias) |
-| `CLIENT_IP_HEADER` | No | `cf-connecting-ip` | Header con la IP real de quien llama. En Render lo escribe Cloudflare. `none` = no usar ningún header. Ver [7.3](#73-verificar-la-ip-después-de-desplegar) |
+| `CLIENT_IP_HEADER` | No | `cf-connecting-ip` | Header con la IP real de quien llama. En Render lo escribe Cloudflare. `none` = no usar ningún header. Ver [7.3](#74-verificar-la-ip-después-de-desplegar) |
 | `TRUST_PROXY` | No | `1` | Solo se usa si el pedido no trae `CLIENT_IP_HEADER` (por ejemplo en local): cantidad de proxies delante del servidor |
 | `TIME_ZONE` | No | `America/Argentina/Buenos_Aires` | Zona horaria para agrupar el historial por día |
 
@@ -134,7 +137,8 @@ Si no definís ninguna variable nueva, el backend se comporta como antes en CORS
 | Script | Para qué |
 |---|---|
 | `npm start` / `npm run dev` | Levantar el servidor |
-| `npm test` | Tests de alertas, telemetría, límites de pedidos e historial (no necesitan base) |
+| `npm test` | Tests de alertas, telemetría, permisos, límites de pedidos e historial (no necesitan base) |
+| `npm run test:contract` | Prueba de contrato de `/api/v1` contra una base **local y desechable** (la borra). Con `-- --update` guarda la forma actual como contrato |
 | `npm run sensors -- add <devEui> ["Nombre"]` | Registrar un sensor antes de instalarlo |
 | `npm run sensors -- list` | Listar sensores, sala, estado y última lectura |
 | `npm run clients -- admin-key` | Generar una clave para `ADMIN_API_KEY` |
@@ -241,16 +245,24 @@ Cada métrica (temperatura y humedad) se evalúa **por separado** contra el perf
 
 El gateway no necesita ningún cambio en ningún paso.
 
-**Límites de pedidos (esta versión):** no trae migraciones ni variables obligatorias. Orden: frontend → backend → [verificar la IP](#73-verificar-la-ip-después-de-desplegar).
+**Límites de pedidos (esta versión):** no trae migraciones ni variables obligatorias. Orden: frontend → backend → [verificar la IP](#74-verificar-la-ip-después-de-desplegar).
 
-### 7.2 Render
+### 7.2 Tests automáticos (GitHub Actions)
+
+En cada push a `main` y en cada pull request, GitHub corre `npm test` y la prueba de contrato de `/api/v1` contra una base Postgres que crea y borra para esa corrida (nunca toca producción). El resultado se ve en la pestaña **Actions** del repo, y GitHub te avisa por mail si falla.
+
+- **Falla** si en `/api/v1` desaparece un campo, cambia su tipo o cambia un código de estado: eso rompería la app del cliente. Si el cambio es necesario, va en `/api/v2`.
+- **No falla** por un campo nuevo (es compatible): lo informa, y después se actualiza el contrato con `npm run test:contract -- --update`.
+- Si Render ofrece desplegar solo cuando pasan los checks de GitHub, conviene activarlo.
+
+### 7.3 Render
 
 - **Build:** tiene que incluir `npx prisma generate` (el cliente no se versiona). Opcional: agregar `npx prisma migrate deploy` al build para no correr las migraciones a mano. Eso requiere `DIRECT_URL` configurada en Render.
 - **Start:** `npm start`.
 - **Health check path** (opcional): `/api/health`.
 - **Monitoreo:** `/api/health` informa `"telemetry": "ok"` o `"stale"` (no llegan lecturas hace más de 30 min). En UptimeRobot, un monitor de palabra clave que busque `"telemetry":"ok"` avisa cuando el gateway deja de mandar, aunque la API siga funcionando.
 
-### 7.3 Verificar la IP después de desplegar
+### 7.4 Verificar la IP después de desplegar
 
 Los límites sin clave se cuentan por IP, así que el servidor tiene que ver la IP real de cada cliente.
 

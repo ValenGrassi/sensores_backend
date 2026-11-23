@@ -1,0 +1,56 @@
+# En cada push y pull request: tests sin base y prueba de contrato de /api/v1
+# contra una base Postgres desechable que GitHub crea para esta corrida
+# (nunca toca la base de producción).
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: sensores
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      DATABASE_URL: postgresql://postgres:test@localhost:5432/sensores
+      DIRECT_URL: postgresql://postgres:test@localhost:5432/sensores
+      ADMIN_API_KEY: sk_ci_admin_key_0123456789abcdef
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Generar el cliente de Prisma
+        run: npx prisma generate
+
+      - name: Tests (sin base de datos)
+        run: npm test
+
+      - name: Aplicar las migraciones a la base de prueba
+        run: npx prisma migrate deploy
+
+      - name: Prueba de contrato de /api/v1
+        run: npm run test:contract

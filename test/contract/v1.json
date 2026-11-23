@@ -1,0 +1,2023 @@
+{
+  "health": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "database": {
+          "types": [
+            "string"
+          ]
+        },
+        "lastReadingAt": {
+          "types": [
+            "string"
+          ]
+        },
+        "schema": {
+          "types": [
+            "string"
+          ]
+        },
+        "status": {
+          "types": [
+            "string"
+          ]
+        },
+        "telemetry": {
+          "types": [
+            "string"
+          ]
+        },
+        "timestamp": {
+          "types": [
+            "string"
+          ]
+        },
+        "uptimeSeconds": {
+          "types": [
+            "number"
+          ]
+        }
+      }
+    }
+  },
+  "me sin clave": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "authenticated": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "client": {
+          "types": [
+            "null"
+          ]
+        },
+        "ip": {
+          "types": [
+            "string"
+          ]
+        },
+        "permissions": {
+          "types": [
+            "array"
+          ]
+        },
+        "rateLimit": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "enabled": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "history": {
+              "types": [
+                "object"
+              ],
+              "fields": {
+                "perDay": {
+                  "types": [
+                    "object"
+                  ],
+                  "fields": {
+                    "limit": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "remaining": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "resetSeconds": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  }
+                },
+                "perMinute": {
+                  "types": [
+                    "object"
+                  ],
+                  "fields": {
+                    "limit": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "remaining": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "resetSeconds": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "requests": {
+              "types": [
+                "object"
+              ],
+              "fields": {
+                "perDay": {
+                  "types": [
+                    "object"
+                  ],
+                  "fields": {
+                    "limit": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "remaining": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "resetSeconds": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  }
+                },
+                "perMinute": {
+                  "types": [
+                    "object"
+                  ],
+                  "fields": {
+                    "limit": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "remaining": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "resetSeconds": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "tier": {
+              "types": [
+                "string"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "me con clave": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "authenticated": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "client": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "id": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "type": {
+              "types": [
+                "string"
+              ]
+            }
+          }
+        },
+        "ip": {
+          "types": [
+            "string"
+          ]
+        },
+        "permissions": {
+          "types": [
+            "array"
+          ],
+          "items": {
+            "types": [
+              "string"
+            ]
+          }
+        },
+        "rateLimit": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "enabled": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "history": {
+              "types": [
+                "object"
+              ],
+              "fields": {
+                "perDay": {
+                  "types": [
+                    "object"
+                  ],
+                  "fields": {
+                    "limit": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "remaining": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "resetSeconds": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  }
+                },
+                "perMinute": {
+                  "types": [
+                    "object"
+                  ],
+                  "fields": {
+                    "limit": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "remaining": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "resetSeconds": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "requests": {
+              "types": [
+                "object"
+              ],
+              "fields": {
+                "perDay": {
+                  "types": [
+                    "object"
+                  ],
+                  "fields": {
+                    "limit": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "remaining": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "resetSeconds": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  }
+                },
+                "perMinute": {
+                  "types": [
+                    "object"
+                  ],
+                  "fields": {
+                    "limit": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "remaining": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "resetSeconds": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "tier": {
+              "types": [
+                "string"
+              ]
+            },
+            "writes": {
+              "types": [
+                "object"
+              ],
+              "fields": {
+                "perMinute": {
+                  "types": [
+                    "object"
+                  ],
+                  "fields": {
+                    "limit": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "remaining": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "resetSeconds": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "stats": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "alerts": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "active": {
+              "types": [
+                "number"
+              ]
+            },
+            "byType": {
+              "types": [
+                "object"
+              ],
+              "fields": {
+                "humidity_high": {
+                  "types": [
+                    "number"
+                  ]
+                },
+                "humidity_low": {
+                  "types": [
+                    "number"
+                  ]
+                },
+                "temperature_high": {
+                  "types": [
+                    "number"
+                  ]
+                },
+                "temperature_low": {
+                  "types": [
+                    "number"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "averages": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "humidity": {
+              "types": [
+                "number"
+              ]
+            },
+            "temperature": {
+              "types": [
+                "number"
+              ]
+            }
+          }
+        },
+        "cinemaId": {
+          "types": [
+            "null"
+          ]
+        },
+        "cinemas": {
+          "types": [
+            "number"
+          ]
+        },
+        "generatedAt": {
+          "types": [
+            "string"
+          ]
+        },
+        "rooms": {
+          "types": [
+            "number"
+          ]
+        },
+        "sensors": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "offline": {
+              "types": [
+                "number"
+              ]
+            },
+            "online": {
+              "types": [
+                "number"
+              ]
+            },
+            "total": {
+              "types": [
+                "number"
+              ]
+            },
+            "unassigned": {
+              "types": [
+                "number"
+              ]
+            },
+            "withActiveAlerts": {
+              "types": [
+                "number"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "cinemas": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "array"
+      ],
+      "items": {
+        "types": [
+          "object"
+        ],
+        "fields": {
+          "activeAlerts": {
+            "types": [
+              "number"
+            ]
+          },
+          "address": {
+            "types": [
+              "string"
+            ]
+          },
+          "id": {
+            "types": [
+              "string"
+            ]
+          },
+          "name": {
+            "types": [
+              "string"
+            ]
+          },
+          "sensorCount": {
+            "types": [
+              "number"
+            ]
+          },
+          "sensorsOffline": {
+            "types": [
+              "number"
+            ]
+          },
+          "sensorsOnline": {
+            "types": [
+              "number"
+            ]
+          },
+          "sensorsWithAlerts": {
+            "types": [
+              "number"
+            ]
+          },
+          "status": {
+            "types": [
+              "string"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "cinema": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "activeAlerts": {
+          "types": [
+            "number"
+          ]
+        },
+        "address": {
+          "types": [
+            "string"
+          ]
+        },
+        "id": {
+          "types": [
+            "string"
+          ]
+        },
+        "name": {
+          "types": [
+            "string"
+          ]
+        },
+        "rooms": {
+          "types": [
+            "array"
+          ],
+          "items": {
+            "types": [
+              "object"
+            ],
+            "fields": {
+              "id": {
+                "types": [
+                  "string"
+                ]
+              },
+              "name": {
+                "types": [
+                  "string"
+                ]
+              },
+              "profileId": {
+                "types": [
+                  "string"
+                ]
+              },
+              "sensors": {
+                "types": [
+                  "array"
+                ],
+                "items": {
+                  "types": [
+                    "object"
+                  ],
+                  "fields": {
+                    "battery": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "cinema": {
+                      "types": [
+                        "object"
+                      ],
+                      "fields": {
+                        "address": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "id": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "name": {
+                          "types": [
+                            "string"
+                          ]
+                        }
+                      }
+                    },
+                    "devEui": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "humidity": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "id": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "lastSeen": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "name": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "profile": {
+                      "types": [
+                        "object"
+                      ],
+                      "fields": {
+                        "description": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "humidityMax": {
+                          "types": [
+                            "number"
+                          ]
+                        },
+                        "humidityMin": {
+                          "types": [
+                            "number"
+                          ]
+                        },
+                        "id": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "name": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "temperatureMax": {
+                          "types": [
+                            "number"
+                          ]
+                        },
+                        "temperatureMin": {
+                          "types": [
+                            "number"
+                          ]
+                        }
+                      }
+                    },
+                    "room": {
+                      "types": [
+                        "object"
+                      ],
+                      "fields": {
+                        "cinemaId": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "id": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "name": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "profileId": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "type": {
+                          "types": [
+                            "string"
+                          ]
+                        }
+                      }
+                    },
+                    "status": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "temperature": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  }
+                }
+              },
+              "type": {
+                "types": [
+                  "string"
+                ]
+              }
+            }
+          }
+        },
+        "sensorCount": {
+          "types": [
+            "number"
+          ]
+        },
+        "sensorsOffline": {
+          "types": [
+            "number"
+          ]
+        },
+        "sensorsOnline": {
+          "types": [
+            "number"
+          ]
+        },
+        "sensorsWithAlerts": {
+          "types": [
+            "number"
+          ]
+        },
+        "status": {
+          "types": [
+            "string"
+          ]
+        }
+      }
+    }
+  },
+  "rooms": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "array"
+      ],
+      "items": {
+        "types": [
+          "object"
+        ],
+        "fields": {
+          "cinemaId": {
+            "types": [
+              "string"
+            ]
+          },
+          "id": {
+            "types": [
+              "string"
+            ]
+          },
+          "name": {
+            "types": [
+              "string"
+            ]
+          },
+          "profileId": {
+            "types": [
+              "string"
+            ]
+          },
+          "type": {
+            "types": [
+              "string"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "profiles": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "array"
+      ],
+      "items": {
+        "types": [
+          "object"
+        ],
+        "fields": {
+          "description": {
+            "types": [
+              "string"
+            ]
+          },
+          "humidityMax": {
+            "types": [
+              "number"
+            ]
+          },
+          "humidityMin": {
+            "types": [
+              "number"
+            ]
+          },
+          "id": {
+            "types": [
+              "string"
+            ]
+          },
+          "name": {
+            "types": [
+              "string"
+            ]
+          },
+          "temperatureMax": {
+            "types": [
+              "number"
+            ]
+          },
+          "temperatureMin": {
+            "types": [
+              "number"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "profile": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "description": {
+          "types": [
+            "string"
+          ]
+        },
+        "humidityMax": {
+          "types": [
+            "number"
+          ]
+        },
+        "humidityMin": {
+          "types": [
+            "number"
+          ]
+        },
+        "id": {
+          "types": [
+            "string"
+          ]
+        },
+        "name": {
+          "types": [
+            "string"
+          ]
+        },
+        "temperatureMax": {
+          "types": [
+            "number"
+          ]
+        },
+        "temperatureMin": {
+          "types": [
+            "number"
+          ]
+        }
+      }
+    }
+  },
+  "sensors": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "array"
+      ],
+      "items": {
+        "types": [
+          "object"
+        ],
+        "fields": {
+          "battery": {
+            "types": [
+              "null",
+              "number"
+            ]
+          },
+          "cinema": {
+            "types": [
+              "null",
+              "object"
+            ],
+            "fields": {
+              "address": {
+                "types": [
+                  "string"
+                ]
+              },
+              "id": {
+                "types": [
+                  "string"
+                ]
+              },
+              "name": {
+                "types": [
+                  "string"
+                ]
+              }
+            }
+          },
+          "devEui": {
+            "types": [
+              "string"
+            ]
+          },
+          "humidity": {
+            "types": [
+              "null",
+              "number"
+            ]
+          },
+          "id": {
+            "types": [
+              "string"
+            ]
+          },
+          "lastSeen": {
+            "types": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "types": [
+              "null",
+              "string"
+            ]
+          },
+          "profile": {
+            "types": [
+              "null",
+              "object"
+            ],
+            "fields": {
+              "description": {
+                "types": [
+                  "string"
+                ]
+              },
+              "humidityMax": {
+                "types": [
+                  "number"
+                ]
+              },
+              "humidityMin": {
+                "types": [
+                  "number"
+                ]
+              },
+              "id": {
+                "types": [
+                  "string"
+                ]
+              },
+              "name": {
+                "types": [
+                  "string"
+                ]
+              },
+              "temperatureMax": {
+                "types": [
+                  "number"
+                ]
+              },
+              "temperatureMin": {
+                "types": [
+                  "number"
+                ]
+              }
+            }
+          },
+          "room": {
+            "types": [
+              "null",
+              "object"
+            ],
+            "fields": {
+              "cinemaId": {
+                "types": [
+                  "string"
+                ]
+              },
+              "id": {
+                "types": [
+                  "string"
+                ]
+              },
+              "name": {
+                "types": [
+                  "string"
+                ]
+              },
+              "profileId": {
+                "types": [
+                  "string"
+                ]
+              },
+              "type": {
+                "types": [
+                  "string"
+                ]
+              }
+            }
+          },
+          "status": {
+            "types": [
+              "string"
+            ]
+          },
+          "temperature": {
+            "types": [
+              "null",
+              "number"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "sensor": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "battery": {
+          "types": [
+            "number"
+          ]
+        },
+        "cinema": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "address": {
+              "types": [
+                "string"
+              ]
+            },
+            "id": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            }
+          }
+        },
+        "devEui": {
+          "types": [
+            "string"
+          ]
+        },
+        "humidity": {
+          "types": [
+            "number"
+          ]
+        },
+        "id": {
+          "types": [
+            "string"
+          ]
+        },
+        "lastSeen": {
+          "types": [
+            "string"
+          ]
+        },
+        "name": {
+          "types": [
+            "string"
+          ]
+        },
+        "profile": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "description": {
+              "types": [
+                "string"
+              ]
+            },
+            "humidityMax": {
+              "types": [
+                "number"
+              ]
+            },
+            "humidityMin": {
+              "types": [
+                "number"
+              ]
+            },
+            "id": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "temperatureMax": {
+              "types": [
+                "number"
+              ]
+            },
+            "temperatureMin": {
+              "types": [
+                "number"
+              ]
+            }
+          }
+        },
+        "room": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "cinemaId": {
+              "types": [
+                "string"
+              ]
+            },
+            "id": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "profileId": {
+              "types": [
+                "string"
+              ]
+            },
+            "type": {
+              "types": [
+                "string"
+              ]
+            }
+          }
+        },
+        "status": {
+          "types": [
+            "string"
+          ]
+        },
+        "temperature": {
+          "types": [
+            "number"
+          ]
+        }
+      }
+    }
+  },
+  "sensor sin sala": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "battery": {
+          "types": [
+            "null"
+          ]
+        },
+        "cinema": {
+          "types": [
+            "null"
+          ]
+        },
+        "devEui": {
+          "types": [
+            "string"
+          ]
+        },
+        "humidity": {
+          "types": [
+            "null"
+          ]
+        },
+        "id": {
+          "types": [
+            "string"
+          ]
+        },
+        "lastSeen": {
+          "types": [
+            "null"
+          ]
+        },
+        "name": {
+          "types": [
+            "null"
+          ]
+        },
+        "profile": {
+          "types": [
+            "null"
+          ]
+        },
+        "room": {
+          "types": [
+            "null"
+          ]
+        },
+        "status": {
+          "types": [
+            "string"
+          ]
+        },
+        "temperature": {
+          "types": [
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "lecturas 7d (cada lectura)": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "array"
+      ],
+      "items": {
+        "types": [
+          "object"
+        ],
+        "fields": {
+          "battery": {
+            "types": [
+              "null",
+              "number"
+            ]
+          },
+          "createdAt": {
+            "types": [
+              "string"
+            ]
+          },
+          "humidity": {
+            "types": [
+              "number"
+            ]
+          },
+          "id": {
+            "types": [
+              "string"
+            ]
+          },
+          "sensorId": {
+            "types": [
+              "string"
+            ]
+          },
+          "temperature": {
+            "types": [
+              "number"
+            ]
+          },
+          "timestamp": {
+            "types": [
+              "string"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "lecturas 6m (promedio diario)": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "array"
+      ],
+      "items": {
+        "types": [
+          "object"
+        ],
+        "fields": {
+          "battery": {
+            "types": [
+              "number"
+            ]
+          },
+          "humidity": {
+            "types": [
+              "number"
+            ]
+          },
+          "samples": {
+            "types": [
+              "number"
+            ]
+          },
+          "sensorId": {
+            "types": [
+              "string"
+            ]
+          },
+          "temperature": {
+            "types": [
+              "number"
+            ]
+          },
+          "timestamp": {
+            "types": [
+              "string"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "measurements": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "page": {
+          "types": [
+            "number"
+          ]
+        },
+        "pageSize": {
+          "types": [
+            "number"
+          ]
+        },
+        "rows": {
+          "types": [
+            "array"
+          ],
+          "items": {
+            "types": [
+              "object"
+            ],
+            "fields": {
+              "battery": {
+                "types": [
+                  "null",
+                  "number"
+                ]
+              },
+              "cinemaName": {
+                "types": [
+                  "string"
+                ]
+              },
+              "devEui": {
+                "types": [
+                  "string"
+                ]
+              },
+              "humidity": {
+                "types": [
+                  "number"
+                ]
+              },
+              "id": {
+                "types": [
+                  "string"
+                ]
+              },
+              "roomName": {
+                "types": [
+                  "string"
+                ]
+              },
+              "sensorId": {
+                "types": [
+                  "string"
+                ]
+              },
+              "sensorName": {
+                "types": [
+                  "string"
+                ]
+              },
+              "temperature": {
+                "types": [
+                  "number"
+                ]
+              },
+              "timestamp": {
+                "types": [
+                  "string"
+                ]
+              }
+            }
+          }
+        },
+        "total": {
+          "types": [
+            "number"
+          ]
+        }
+      }
+    }
+  },
+  "alerts": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "array"
+      ],
+      "items": {
+        "types": [
+          "object"
+        ],
+        "fields": {
+          "active": {
+            "types": [
+              "boolean"
+            ]
+          },
+          "cinemaId": {
+            "types": [
+              "string"
+            ]
+          },
+          "cinemaName": {
+            "types": [
+              "string"
+            ]
+          },
+          "createdAt": {
+            "types": [
+              "string"
+            ]
+          },
+          "devEui": {
+            "types": [
+              "string"
+            ]
+          },
+          "humidity": {
+            "types": [
+              "null",
+              "number"
+            ]
+          },
+          "id": {
+            "types": [
+              "string"
+            ]
+          },
+          "resolvedAt": {
+            "types": [
+              "null",
+              "string"
+            ]
+          },
+          "roomId": {
+            "types": [
+              "string"
+            ]
+          },
+          "roomName": {
+            "types": [
+              "string"
+            ]
+          },
+          "sensorId": {
+            "types": [
+              "string"
+            ]
+          },
+          "sensorName": {
+            "types": [
+              "string"
+            ]
+          },
+          "temperature": {
+            "types": [
+              "number"
+            ]
+          },
+          "type": {
+            "types": [
+              "string"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "alerts activas": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "array"
+      ],
+      "items": {
+        "types": [
+          "object"
+        ],
+        "fields": {
+          "active": {
+            "types": [
+              "boolean"
+            ]
+          },
+          "cinemaId": {
+            "types": [
+              "string"
+            ]
+          },
+          "cinemaName": {
+            "types": [
+              "string"
+            ]
+          },
+          "createdAt": {
+            "types": [
+              "string"
+            ]
+          },
+          "devEui": {
+            "types": [
+              "string"
+            ]
+          },
+          "humidity": {
+            "types": [
+              "number"
+            ]
+          },
+          "id": {
+            "types": [
+              "string"
+            ]
+          },
+          "resolvedAt": {
+            "types": [
+              "null"
+            ]
+          },
+          "roomId": {
+            "types": [
+              "string"
+            ]
+          },
+          "roomName": {
+            "types": [
+              "string"
+            ]
+          },
+          "sensorId": {
+            "types": [
+              "string"
+            ]
+          },
+          "sensorName": {
+            "types": [
+              "string"
+            ]
+          },
+          "temperature": {
+            "types": [
+              "number"
+            ]
+          },
+          "type": {
+            "types": [
+              "string"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "patch sensor": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "battery": {
+          "types": [
+            "number"
+          ]
+        },
+        "cinema": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "address": {
+              "types": [
+                "string"
+              ]
+            },
+            "id": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            }
+          }
+        },
+        "devEui": {
+          "types": [
+            "string"
+          ]
+        },
+        "humidity": {
+          "types": [
+            "number"
+          ]
+        },
+        "id": {
+          "types": [
+            "string"
+          ]
+        },
+        "lastSeen": {
+          "types": [
+            "string"
+          ]
+        },
+        "name": {
+          "types": [
+            "string"
+          ]
+        },
+        "profile": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "description": {
+              "types": [
+                "string"
+              ]
+            },
+            "humidityMax": {
+              "types": [
+                "number"
+              ]
+            },
+            "humidityMin": {
+              "types": [
+                "number"
+              ]
+            },
+            "id": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "temperatureMax": {
+              "types": [
+                "number"
+              ]
+            },
+            "temperatureMin": {
+              "types": [
+                "number"
+              ]
+            }
+          }
+        },
+        "room": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "cinemaId": {
+              "types": [
+                "string"
+              ]
+            },
+            "id": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "profileId": {
+              "types": [
+                "string"
+              ]
+            },
+            "type": {
+              "types": [
+                "string"
+              ]
+            }
+          }
+        },
+        "status": {
+          "types": [
+            "string"
+          ]
+        },
+        "temperature": {
+          "types": [
+            "number"
+          ]
+        }
+      }
+    }
+  },
+  "error 401": {
+    "status": 401,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "error": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "code": {
+              "types": [
+                "string"
+              ]
+            },
+            "message": {
+              "types": [
+                "string"
+              ]
+            },
+            "requestId": {
+              "types": [
+                "string"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "error 404": {
+    "status": 404,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "error": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "code": {
+              "types": [
+                "string"
+              ]
+            },
+            "message": {
+              "types": [
+                "string"
+              ]
+            },
+            "requestId": {
+              "types": [
+                "string"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "error 400": {
+    "status": 400,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "error": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "code": {
+              "types": [
+                "string"
+              ]
+            },
+            "details": {
+              "types": [
+                "array"
+              ],
+              "items": {
+                "types": [
+                  "object"
+                ],
+                "fields": {
+                  "field": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "message": {
+                    "types": [
+                      "string"
+                    ]
+                  }
+                }
+              }
+            },
+            "message": {
+              "types": [
+                "string"
+              ]
+            },
+            "requestId": {
+              "types": [
+                "string"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "headers de límites": {
+    "status": 200,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "ratelimit-limit": {
+          "types": [
+            "string"
+          ]
+        },
+        "ratelimit-remaining": {
+          "types": [
+            "string"
+          ]
+        },
+        "ratelimit-reset": {
+          "types": [
+            "string"
+          ]
+        },
+        "x-request-id": {
+          "types": [
+            "string"
+          ]
+        }
+      }
+    }
+  },
+  "error 429": {
+    "status": 429,
+    "shape": {
+      "types": [
+        "object"
+      ],
+      "fields": {
+        "error": {
+          "types": [
+            "object"
+          ],
+          "fields": {
+            "code": {
+              "types": [
+                "string"
+              ]
+            },
+            "limit": {
+              "types": [
+                "object"
+              ],
+              "fields": {
+                "max": {
+                  "types": [
+                    "number"
+                  ]
+                },
+                "scope": {
+                  "types": [
+                    "string"
+                  ]
+                },
+                "windowSeconds": {
+                  "types": [
+                    "number"
+                  ]
+                }
+              }
+            },
+            "message": {
+              "types": [
+                "string"
+              ]
+            },
+            "requestId": {
+              "types": [
+                "string"
+              ]
+            },
+            "retryAfterSeconds": {
+              "types": [
+                "number"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

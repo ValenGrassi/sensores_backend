@@ -3,3 +3,12 @@ node_modules
 .env
 
 /src/generated/prisma
+
+# Herramientas de IA del editor (quedan en tu compu, no en el repo)
+/.agents/
+/.claude/
+/.windsurf/
+/skills-lock.json
+
+# Archivos que deja Git Bash cuando un comando se cuelga
+*.stackdump

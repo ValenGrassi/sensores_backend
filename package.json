@@ -7,6 +7,7 @@
     "dev": "node src/server.js",
     "start": "node src/server.js",
     "test": "node --test \"test/*.test.js\"",
+    "test:contract": "node test/contract/run.js",
     "clients": "node scripts/api-clients.js",
     "sensors": "node scripts/sensors.js"
   },
