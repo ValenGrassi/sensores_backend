@@ -34,4 +34,15 @@ function requirePermission(permission) {
   };
 }
 
-module.exports = { identifyClient, requirePermission };
+/**
+ * Solo la clave de administrador (ADMIN_API_KEY). Para lo estructural: cines y salas.
+ * No es un permiso que se pueda dar con `npm run clients`, así que ningún
+ * tercero puede recibirlo, ni por error.
+ */
+function requireAdmin(req, res, next) {
+  if (!req.client) throw errors.apiKeyRequired();
+  if (req.client.type !== "admin") throw errors.adminOnly();
+  next();
+}
+
+module.exports = { identifyClient, requirePermission, requireAdmin };

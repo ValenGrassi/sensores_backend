@@ -2,9 +2,9 @@
  * Permisos de escritura que se le pueden dar a una clave de API.
  *
  * La lectura (GET) es pública y no necesita clave.
- * Lo estructural (crear sensores, cines y salas) no está expuesto en la API:
- * los sensores se registran con `npm run sensors -- add <devEui>`, y los cines
- * y salas se cargan en la base. Ningún permiso habilita eso.
+ * Lo estructural no es un permiso que se pueda dar: los sensores se registran
+ * con `npm run sensors -- add <devEui>`, y los cines y salas los administra
+ * solo la clave de administrador (requireAdmin), desde el frontend.
  */
 
 const PERMISSIONS = {

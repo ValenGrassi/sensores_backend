@@ -164,6 +164,8 @@ Todas las respuestas de error tienen la misma forma:
 | `GET` | `/api/cinemas` | Público | Cines con resumen de estado |
 | `GET` | `/api/cinemas/:id` | Público | Un cine con sus salas y sensores |
 | `GET` | `/api/rooms` | Público | Salas (filtro `cinemaId`) |
+| `POST` · `PATCH` · `DELETE` | `/api/cinemas` · `/api/cinemas/:id` | Solo admin | Alta, edición y baja de cines |
+| `POST` · `PATCH` · `DELETE` | `/api/rooms` · `/api/rooms/:id` | Solo admin | Alta, edición y baja de salas |
 | `GET` | `/api/sensors` | Público | Sensores con estado y ubicación (filtros `cinemaId`, `roomId`, `status`) |
 | `GET` | `/api/sensors/:devEui` | Público | Un sensor |
 | `GET` | `/api/sensors/:devEui/measurements` | Público · historial | Histórico de un sensor por rango (`preset`), con promedios en rangos largos |
@@ -365,6 +367,18 @@ Los mismos datos en la forma plana que usa el frontend:
 
 El resumen anterior más `rooms`: cada sala (`id`, `name`, `type`, `profileId`) con su lista de `sensors` en la forma [Sensor](#sensor). `404 CINEMA_NOT_FOUND`.
 
+### `POST /api/cinemas` · `PATCH /api/cinemas/:id` · `DELETE /api/cinemas/:id`
+
+**Solo la clave de administrador** (`ADMIN_API_KEY`); no es un permiso que se le pueda dar a un tercero. Sin clave: `401`; con otra clave: `403 FORBIDDEN`.
+
+| Campo | Regla |
+|---|---|
+| `name` | Texto, 1 a 100 caracteres. Obligatorio al crear |
+| `address` | Texto, 1 a 200 caracteres. Obligatorio al crear |
+
+- `POST` responde `201` con `{ id, name, address }`; `PATCH` (campos opcionales) responde `200` con lo mismo.
+- `DELETE` responde `204`. Si el cine tiene salas: `409 CINEMA_HAS_ROOMS` (la base borraría las salas en cascada).
+
 ---
 
 ## Salas
@@ -372,6 +386,21 @@ El resumen anterior más `rooms`: cada sala (`id`, `name`, `type`, `profileId`) 
 ### `GET /api/rooms`
 
 Query opcional `cinemaId`. Devuelve un arreglo de [Room](#room) ordenado por nombre.
+
+### `POST /api/rooms` · `PATCH /api/rooms/:id` · `DELETE /api/rooms/:id`
+
+**Solo la clave de administrador**, igual que los cines.
+
+| Campo | Regla |
+|---|---|
+| `cinemaId` | Solo al crear. Tiene que existir (`404 CINEMA_NOT_FOUND`). Una sala no cambia de cine |
+| `name` | Texto, 1 a 100 caracteres. Obligatorio al crear |
+| `type` | `projection` · `hall` · `lobby` · `storage` · `other`. Obligatorio al crear |
+| `profileId` | Tiene que existir (`404 PROFILE_NOT_FOUND`). Obligatorio al crear |
+
+- `POST` responde `201` con el [Room](#room); `PATCH` (campos opcionales) responde `200`.
+- Si `PATCH` cambia el perfil, se reevalúan en el momento las alertas de los sensores de la sala.
+- `DELETE` responde `204`. Si la sala tiene sensores: `409 ROOM_HAS_SENSORS` (primero hay que pasarlos a otra sala).
 
 ---
 

@@ -129,6 +129,9 @@ const errors = {
       `Tu clave de API no tiene permiso para esta operación (se necesita "${permission}").`
     ),
 
+  adminOnly: () =>
+    new ApiError(403, "FORBIDDEN", "Solo la clave de administrador puede crear, editar o eliminar cines y salas."),
+
   routeNotFound: (method, path) =>
     new ApiError(404, "ROUTE_NOT_FOUND", `No existe la ruta ${method} ${path}.`),
 
@@ -156,6 +159,21 @@ const errors = {
       `No se puede eliminar el perfil porque lo ${
         roomCount === 1 ? "usa 1 sala" : `usan ${roomCount} salas`
       }. Asigná otro perfil a esas salas primero.`
+    ),
+
+  cinemaHasRooms: (roomCount) =>
+    new ApiError(
+      409,
+      "CINEMA_HAS_ROOMS",
+      `No se puede eliminar el cine porque tiene ${roomCount === 1 ? "1 sala" : `${roomCount} salas`}. Eliminá primero sus salas.`
+    ),
+
+  roomHasSensors: (sensorCount) =>
+    new ApiError(
+      409,
+      "ROOM_HAS_SENSORS",
+      `No se puede eliminar la sala porque tiene ${sensorCount === 1 ? "1 sensor" : `${sensorCount} sensores`}. ` +
+        "Pasalos a otra sala primero (Sensores > el sensor > Configurar)."
     ),
 
   conflict: () =>

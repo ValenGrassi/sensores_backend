@@ -1,7 +1,9 @@
 const express = require("express");
 const prisma = require("../lib/prisma");
 const { errors } = require("../lib/errors");
-const { isOnline, toSensorDTO } = require("../services/sensors");
+const { validator, requireJsonBody } = require("../lib/validation");
+const { requireAdmin } = require("../middleware/auth");
+const { isOnline, toSensorDTO, toCinemaRefDTO } = require("../services/sensors");
 
 const router = express.Router();
 
@@ -96,6 +98,51 @@ router.get("/:id", async (req, res) => {
       ),
     })),
   });
+});
+
+// ─── Alta, edición y baja: solo la clave de administrador ─────────────────────
+
+async function findCinemaOrThrow(id) {
+  const cinema = await prisma.cinema.findUnique({ where: { id } });
+  if (!cinema) throw errors.cinemaNotFound(id);
+  return cinema;
+}
+
+/** POST /api/cinemas { name, address } */
+router.post("/", requireAdmin, async (req, res) => {
+  const check = validator(requireJsonBody(req));
+  const name = check.string("name", { required: true, maxLength: 100 });
+  const address = check.string("address", { required: true, maxLength: 200 });
+  check.done();
+
+  const cinema = await prisma.cinema.create({ data: { name, address } });
+  res.status(201).json(toCinemaRefDTO(cinema));
+});
+
+/** PATCH /api/cinemas/:id { name?, address? } */
+router.patch("/:id", requireAdmin, async (req, res) => {
+  const check = validator(requireJsonBody(req));
+  const name = check.string("name", { maxLength: 100 });
+  const address = check.string("address", { maxLength: 200 });
+  check.done();
+
+  await findCinemaOrThrow(req.params.id);
+  const cinema = await prisma.cinema.update({
+    where: { id: req.params.id },
+    data: { ...(name !== undefined && { name }), ...(address !== undefined && { address }) },
+  });
+  res.json(toCinemaRefDTO(cinema));
+});
+
+/** DELETE /api/cinemas/:id — solo si no tiene salas (la base borraría las salas en cascada). */
+router.delete("/:id", requireAdmin, async (req, res) => {
+  await findCinemaOrThrow(req.params.id);
+
+  const roomCount = await prisma.room.count({ where: { cinemaId: req.params.id } });
+  if (roomCount > 0) throw errors.cinemaHasRooms(roomCount);
+
+  await prisma.cinema.delete({ where: { id: req.params.id } });
+  res.sendStatus(204);
 });
 
 module.exports = router;

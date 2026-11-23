@@ -152,7 +152,8 @@ Si no definís ninguna variable nueva, el backend se comporta como antes en CORS
 | `POST /api/telemetry` | El gateway (sin clave; no se documenta a terceros) |
 | `PATCH /api/sensors/:devEui` (nombre y sala) | Clave con `sensors:write` o la de administrador |
 | `POST`, `PATCH`, `DELETE /api/profiles` | Clave con `profiles:write` o la de administrador |
-| Crear sensores, cines o salas | **Nadie por la API.** Los sensores se registran con `npm run sensors -- add`; cines y salas se cargan en la base |
+| Cines y salas (`POST`, `PATCH`, `DELETE`) | **Solo tu clave de administrador**, desde el frontend (Cines). No es un permiso que se pueda dar a un tercero |
+| Registrar sensores | Solo vos, con `npm run sensors -- add`, desde tu computadora |
 | Crear o revocar claves | Solo vos, con el script, desde tu computadora |
 
 - La clave se envía en el header `X-API-Key`.
@@ -275,4 +276,4 @@ Si algo falla con los límites en producción, `RATE_LIMIT_ENABLED=false` en Ren
 
 - **Límites en memoria:** si algún día corren varias instancias del backend, cada una cuenta por separado (habría que pasar los contadores a una base compartida, como Redis). La telemetría no tiene límite a propósito.
 - **Telemetría:** no hay índice único en `Measurement(sensorId, timestamp)`: las repeticiones reales llegan con timestamps distintos y no las frenaría. Las 581 repeticiones de ago–sep 2026 siguen en el histórico (no afectan promedios porque tienen los mismos valores).
-- No hay endpoints para cines y salas (alta, edición, baja), ni para desasignar un sensor.
+- No se puede desasignar un sensor (dejarlo sin sala) ni mover una sala a otro cine.
