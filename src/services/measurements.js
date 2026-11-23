@@ -1,5 +1,6 @@
 /**
- * Historial de un sensor en distintas resoluciones (series agregadas).
+ * Rangos de fechas (preset o from/to) para los historiales, y el historial de
+ * un sensor en distintas resoluciones (series agregadas):
  *
  *   raw   cada medición tal como llegó          rangos de hasta 7 días
  *   hour  promedio por hora                     rangos de hasta 92 días
@@ -13,6 +14,37 @@ const prisma = require("../lib/prisma");
 const config = require("../config");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Rangos con nombre, en días hacia atrás desde ahora (null = todo). Los usa el frontend. */
+const PRESET_DAYS = {
+  "24h": 1,
+  "7d": 7,
+  "30d": 30,
+  "3m": 91,
+  "6m": 182,
+  all: null,
+};
+const PRESETS = Object.keys(PRESET_DAYS);
+
+/**
+ * Rango de fechas pedido con `preset` o con `from`/`to` (no los dos).
+ * Devuelve { range } con { gte?, lte? } para Prisma (vacío = sin filtro), o { issue }.
+ */
+function resolveDateRange({ preset, from, to }, now = new Date()) {
+  if (preset && (from || to)) {
+    return { issue: { field: "preset", message: "Usá preset o from/to, no los dos a la vez." } };
+  }
+  if (from && to && from > to) {
+    return { issue: { field: "from", message: "Tiene que ser anterior o igual a to." } };
+  }
+
+  if (preset) {
+    const days = PRESET_DAYS[preset];
+    return { range: days === null ? {} : { gte: new Date(now.getTime() - days * DAY_MS) } };
+  }
+
+  return { range: { ...(from && { gte: from }), ...(to && { lte: to }) } };
+}
 
 const RESOLUTIONS = ["auto", "raw", "hour", "day"];
 
@@ -84,4 +116,12 @@ async function aggregateMeasurements({ sensorId, from, to, resolution }) {
   }));
 }
 
-module.exports = { RESOLUTIONS, MAX_RANGE_DAYS, chooseResolution, aggregateMeasurements };
+module.exports = {
+  PRESET_DAYS,
+  PRESETS,
+  resolveDateRange,
+  RESOLUTIONS,
+  MAX_RANGE_DAYS,
+  chooseResolution,
+  aggregateMeasurements,
+};

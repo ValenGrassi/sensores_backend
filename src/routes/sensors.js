@@ -5,22 +5,15 @@ const { validator, requireJsonBody } = require("../lib/validation");
 const { requirePermission } = require("../middleware/auth");
 const { historyLimit } = require("../middleware/rateLimit");
 const { evaluateSensorAlerts } = require("../services/alerts");
+const config = require("../config");
 const { SENSOR_INCLUDE, toSensorDTO, normalizeDevEui } = require("../services/sensors");
-const { RESOLUTIONS, chooseResolution, aggregateMeasurements } = require("../services/measurements");
+const { PRESET_DAYS, RESOLUTIONS, chooseResolution, aggregateMeasurements } = require("../services/measurements");
 
 const router = express.Router();
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Rangos de tiempo de /api/sensors/:devEui/measurements (en días; null = todo). */
-const PRESET_DAYS = {
-  "24h": 1,
-  "7d": 7,
-  "30d": 30,
-  "3m": 91,
-  "6m": 182,
-  all: null,
-};
+const STATUSES = ["online", "offline", "alert"];
 
 async function findSensorOrThrow(devEui) {
   const sensor = await prisma.sensor.findUnique({ where: { devEui } });
@@ -28,9 +21,32 @@ async function findSensorOrThrow(devEui) {
   return sensor;
 }
 
-/** GET /api/sensors — todos los sensores con su estado y ubicación. */
+/** Condición de Prisma para cada estado (misma regla que getSensorStatus). */
+function statusFilter(status, now = Date.now()) {
+  const onlineSince = new Date(now - config.sensorOfflineMinutes * 60 * 1000);
+  if (status === "online") return { lastSeen: { gt: onlineSince } };
+  if (status === "offline") return { OR: [{ lastSeen: null }, { lastSeen: { lte: onlineSince } }] };
+  if (status === "alert") return { alerts: { some: { active: true } } };
+  return {};
+}
+
+/**
+ * GET /api/sensors — sensores con su estado y ubicación.
+ * Filtros opcionales: cinemaId, roomId, status (online | offline | alert = con alerta activa).
+ */
 router.get("/", async (req, res) => {
+  const check = validator(req.query);
+  const cinemaId = check.string("cinemaId");
+  const roomId = check.string("roomId");
+  const status = check.oneOf("status", STATUSES);
+  check.done();
+
   const sensors = await prisma.sensor.findMany({
+    where: {
+      ...(cinemaId && { room: { cinemaId } }),
+      ...(roomId && { roomId }),
+      ...statusFilter(status),
+    },
     include: SENSOR_INCLUDE,
     orderBy: { name: "asc" },
   });

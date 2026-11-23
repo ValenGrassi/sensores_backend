@@ -164,12 +164,12 @@ Todas las respuestas de error tienen la misma forma:
 | `GET` | `/api/cinemas` | Público | Cines con resumen de estado |
 | `GET` | `/api/cinemas/:id` | Público | Un cine con sus salas y sensores |
 | `GET` | `/api/rooms` | Público | Salas (filtro `cinemaId`) |
-| `GET` | `/api/sensors` | Público | Sensores con estado y ubicación |
+| `GET` | `/api/sensors` | Público | Sensores con estado y ubicación (filtros `cinemaId`, `roomId`, `status`) |
 | `GET` | `/api/sensors/:devEui` | Público | Un sensor |
 | `GET` | `/api/sensors/:devEui/measurements` | Público · historial | Histórico de un sensor por rango (`preset`), con promedios en rangos largos |
 | `PATCH` | `/api/sensors/:devEui` | `sensors:write` | Cambiar nombre y sala |
-| `GET` | `/api/measurements` | Público · historial | Histórico paginado (hasta 500 por página) |
-| `GET` | `/api/alerts` | Público · historial¹ | Alertas, de a 200 (filtro `active`, paginación con `cursor`) |
+| `GET` | `/api/measurements` | Público · historial | Histórico paginado (hasta 500 por página), con filtros por sensor, sala, cine y fechas |
+| `GET` | `/api/alerts` | Público · historial¹ | Alertas, de a 200 (filtros `active` y fechas, paginación con `cursor`) |
 | `GET` | `/api/profiles` | Público | Perfiles |
 | `GET` | `/api/profiles/:id` | Público | Un perfil |
 | `POST` | `/api/profiles` | `profiles:write` | Crear perfil |
@@ -379,7 +379,15 @@ Query opcional `cinemaId`. Devuelve un arreglo de [Room](#room) ordenado por nom
 
 ### `GET /api/sensors`
 
-Arreglo de [Sensor](#sensor), ordenado por nombre.
+Arreglo de [Sensor](#sensor), ordenado por nombre. Sin filtros devuelve todos.
+
+| Query | Valores |
+|---|---|
+| `cinemaId` | Solo los sensores de ese cine |
+| `roomId` | Solo los de esa sala |
+| `status` | `online` · `offline` · `alert` (con al menos una alerta activa) |
+
+Un `cinemaId` o `roomId` que no existe devuelve un arreglo vacío. Un `status` inválido responde `400`.
 
 ### `GET /api/sensors/:devEui`
 
@@ -432,8 +440,18 @@ Devuelve el [Sensor](#sensor) actualizado. Las alertas del sensor se reevalúan 
 | `devEui` | Filtrar por sensor (DevEUI) | — |
 | `sensorId` | Filtrar por sensor (`id` interno) | — |
 | `cinemaId` | Filtrar por cine | — |
+| `roomId` | Filtrar por sala | — |
 | `page` | Entero ≥ 1 | `1` |
 | `pageSize` | Entero de 1 a 500 | `20` |
+
+**Fechas** (opcionales; sin ellas no se filtra por fecha). Se usa una de las dos formas, no las dos:
+
+| Query | Valores |
+|---|---|
+| `preset` | `24h` · `7d` · `30d` · `3m` (91 días) · `6m` (182 días) · `all` (sin límite) |
+| `from`, `to` | Fechas ISO 8601, por ejemplo `2026-11-01` (00:00 UTC) o `2026-11-01T12:00:00-03:00`. Se puede mandar solo una |
+
+Mandar `preset` junto con `from`/`to`, un `from` posterior a `to` o una fecha en otro formato responde `400 VALIDATION_ERROR` explicando qué corregir.
 
 ```json
 { "rows": [{ "id": "…", "timestamp": "…", "temperature": 22.4, "humidity": 51, "battery": 95,
@@ -455,6 +473,8 @@ De la más nueva a la más vieja. Un `pageSize` mayor a 500 responde `400`.
 | `active` | `true` · `false` · omitido = todas | — |
 | `limit` | Entero de 1 a 500 | `200` |
 | `cursor` | `id` de la última alerta recibida, para traer las siguientes (más viejas) | — |
+
+Las mismas fechas que `GET /api/measurements` (`preset`, o `from`/`to`), según cuándo **se abrió** la alerta. Se combinan con `cursor`.
 
 Arreglo de [Alert](#alert), de la más nueva a la más vieja, con como máximo `limit` elementos.
 

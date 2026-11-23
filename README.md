@@ -275,5 +275,4 @@ Si algo falla con los límites en producción, `RATE_LIMIT_ENABLED=false` en Ren
 
 - **Límites en memoria:** si algún día corren varias instancias del backend, cada una cuenta por separado (habría que pasar los contadores a una base compartida, como Redis). La telemetría no tiene límite a propósito.
 - **Telemetría:** no hay índice único en `Measurement(sensorId, timestamp)`: las repeticiones reales llegan con timestamps distintos y no las frenaría. Las 581 repeticiones de ago–sep 2026 siguen en el histórico (no afectan promedios porque tienen los mismos valores).
-- `GET /api/measurements` ignora `preset`, `from`, `to` y `roomId`. `GET /api/sensors` ignora filtros.
 - No hay endpoints para cines y salas (alta, edición, baja), ni para desasignar un sensor.

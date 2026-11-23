@@ -6,6 +6,8 @@
 
 const { errors } = require("./errors");
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})?)?$/;
+
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -150,6 +152,20 @@ class Validator {
     }
 
     return raw;
+  }
+
+  /** Fecha ISO 8601 en la query: "2026-11-20" (00:00 UTC) o "2026-11-20T15:00:00Z". */
+  date(field) {
+    const raw = this.source[field];
+    if (raw === undefined || raw === "") return undefined;
+
+    const value = typeof raw === "string" && ISO_DATE.test(raw) ? new Date(raw) : null;
+    if (!value || Number.isNaN(value.getTime())) {
+      this.issue(field, 'Tiene que ser una fecha ISO 8601, por ejemplo "2026-11-20" o "2026-11-20T15:00:00Z".');
+      return undefined;
+    }
+
+    return value;
   }
 
   /** "true" / "false" en la query. */
